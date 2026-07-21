@@ -19,7 +19,7 @@ export const RU_RAW: RawUnit[] = [
     title: "Dasar & Salam",
     titleNative: "Приветствия",
     description: "Mulai dari sapaan dan kata paling dasar",
-    icon: "🎌",
+    icon: "👋",
     color: "indigo",
     lessons: [
       {

@@ -11,7 +11,7 @@ export const EN_RAW: RawUnit[] = [
     title: "Dasar & Salam",
     titleNative: "GREETINGS",
     description: "Mulai dari sapaan dan kata paling dasar",
-    icon: "🎌",
+    icon: "👋",
     color: "indigo",
     lessons: [
       {
