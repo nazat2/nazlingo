@@ -22,6 +22,7 @@ const ALPHABET_LABEL: Record<LanguageCode, string | null> = {
   ja: "Kana",
   zh: "Pinyin",
   ar: "Hijaiyah",
+  ru: "Cyrillic",
   en: null,
 };
 
