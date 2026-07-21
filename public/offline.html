@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Nazlingo — Sedang Offline</title>
+    <!-- Halaman ini sengaja HTML polos (bukan halaman Next.js) supaya bisa
+         di-precache saat service worker pertama kali dipasang, dan tetap
+         bisa ditampilkan walau seluruh app Next.js belum sempat dimuat sama
+         sekali di perangkat ini. Warna & gaya disamakan manual dengan tema
+         Nazlingo (lihat app/globals.css) supaya tidak kerasa "keluar app". -->
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 24px;
+        text-align: center;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #fbf6ec;
+        color: #22252b;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #12141a;
+          color: #e8e4da;
+        }
+        p.muted {
+          color: #e8e4da99 !important;
+        }
+        button {
+          background: #3a5a8f !important;
+        }
+      }
+      .icon {
+        font-size: 48px;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0;
+      }
+      p.muted {
+        max-width: 360px;
+        font-size: 14px;
+        color: #22252b99;
+        margin: 0;
+      }
+      button {
+        margin-top: 8px;
+        padding: 12px 24px;
+        border-radius: 16px;
+        border: none;
+        background: #274472;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="icon">📴</div>
+    <h1>Kamu sedang offline</h1>
+    <p class="muted">
+      Halaman ini belum pernah dibuka sebelumnya saat online, jadi belum
+      tersimpan di perangkatmu. Buka lagi kalau sudah tersambung internet, ya —
+      progres belajarmu tetap aman tersimpan kok.
+    </p>
+    <button onclick="location.reload()">Coba Lagi</button>
+  </body>
+</html>

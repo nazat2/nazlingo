@@ -1,0 +1,263 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* --font-zenmaru sekarang disuntik oleh next/font (lihat app/layout.tsx) */
+
+  /* Palet terang (default) - format "R G B" supaya mendukung modifier opacity Tailwind (mis. bg-washi/90) */
+  --color-washi: 251 246 236; /* #FBF6EC */
+  --color-washi2: 244 236 221; /* #F4ECDD */
+  --color-ink: 34 37 43; /* #22252B */
+  --color-surface: 255 255 255; /* #FFFFFF */
+  --color-line: 0 0 0; /* dipakai dengan opacity rendah untuk garis pembatas */
+}
+
+.dark {
+  --color-washi: 18 20 26; /* latar utama gelap */
+  --color-washi2: 26 29 37;
+  --color-ink: 232 228 218; /* teks terang di atas latar gelap */
+  --color-surface: 30 33 42; /* kartu di mode gelap */
+  --color-line: 255 255 255;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Proteksi konten: teks di seluruh web ini TIDAK BISA diseleksi/disalin,
+   baik lewat drag-select di desktop maupun tekan-tahan (long press) di HP.
+   Kolom input (mis. tempat mengetik jawaban romaji) dikecualikan supaya
+   pengguna tetap bisa mengetik & mengedit teksnya secara normal. */
+html,
+body,
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Kosakata bahasa yang sedang dipelajari (Jepang/Inggris/Mandarin/Arab)
+   boleh diseleksi & disalin — ditandai lewat atribut HTML `lang` di
+   ClickableText, chart Hiragana, dan daftar "Perlu Dilatih Lagi". Arti
+   Bahasa Indonesia (tanpa atribut ini, ikut default `lang="id"` dari
+   <html>) tetap tidak bisa disalin. */
+[lang="ja"],
+[lang="ja"] *,
+[lang="en"],
+[lang="en"] *,
+[lang="zh"],
+[lang="zh"] *,
+[lang="ar"],
+[lang="ar"] * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+:root {
+  /* Tinggi bilah navigasi bawah (mobile) + jarak aman dari gesture bar/home indicator */
+  --bottom-nav-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* Utilitas jarak aman supaya tombol/aksi penting tidak pernah tertutup
+   gesture bar (Android) atau home indicator (iOS). */
+.pb-safe {
+  padding-bottom: calc(1rem + var(--safe-bottom));
+}
+.pt-safe {
+  padding-top: var(--safe-top);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  overscroll-behavior-y: none;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  /* Latar modern: gradasi radial lembut di beberapa titik + warna dasar washi,
+     memberi kedalaman tanpa mengganggu keterbacaan konten di atasnya. */
+  background-image:
+    radial-gradient(ellipse 900px 500px at 8% -10%, rgb(39 68 114 / 0.07), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 100% 0%, rgb(217 70 46 / 0.05), transparent 55%),
+    radial-gradient(ellipse 700px 600px at 50% 100%, rgb(92 138 106 / 0.05), transparent 60%);
+  background-attachment: fixed;
+  background-color: rgb(var(--color-washi));
+}
+.dark body {
+  background-image:
+    radial-gradient(ellipse 900px 500px at 8% -10%, rgb(62 92 138 / 0.14), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 100% 0%, rgb(240 132 106 / 0.08), transparent 55%),
+    radial-gradient(ellipse 700px 600px at 50% 100%, rgb(92 138 106 / 0.08), transparent 60%);
+}
+
+/* Panel kaca buram — dipakai untuk header/nav modern yang melayang di atas
+   konten dengan sedikit transparansi & blur. */
+.glass {
+  background: rgb(var(--color-surface) / 0.72);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* Kartu modern dengan border tipis + shadow lembut, dipakai di beberapa
+   komponen agar tampilan lebih rapi & konsisten. */
+.card-modern {
+  border: 1px solid rgb(var(--color-ink) / 0.06);
+  box-shadow: 0 1px 2px rgb(var(--color-ink) / 0.04), 0 8px 24px -8px rgb(var(--color-ink) / 0.10);
+}
+
+/* Motif dekoratif per bahasa buat banner Hero di halaman utama — lihat
+   lib/languages.ts (LANGUAGE_THEME) untuk bahasa mana pakai motif mana.
+   Semua murni CSS (gradient), tanpa aset gambar tambahan, jadi ringan. */
+
+/* Inggris: kesan "buku catatan" — garis kotak-kotak tipis */
+.motif-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Mandarin: motif belah ketupat (lattice) */
+.motif-diamonds {
+  background-image: linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.14) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.14) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.14) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.14) 75%
+    );
+  background-size: 26px 26px;
+  background-position: 0 0, 13px 13px;
+}
+
+/* Arab: kisi geometris ala ornamen Arab/Islami (bukan simbol keagamaan
+   tertentu, cuma pola dekoratif garis diagonal + titik simpul) */
+.motif-stars {
+  background-image: radial-gradient(
+      circle at 0 0,
+      rgba(255, 255, 255, 0.22) 0 2.5px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      circle at 20px 20px,
+      rgba(255, 255, 255, 0.22) 0 2.5px,
+      transparent 2.5px
+    ),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px, 20px 20px, 20px 20px;
+}
+
+/* Jepang tetap pakai motif gelombang (seigaiha) yang sudah ada di
+   tailwind.config (backgroundImage.seigaiha) via kelas "motif-waves" — alias
+   supaya cara pakainya konsisten dengan 3 motif bahasa lain di atas. */
+.motif-waves {
+  background-image: radial-gradient(
+    circle at 50% 0%,
+    transparent 24%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.08) 28%,
+    transparent 29%
+  );
+}
+
+/* Rusia: motif "embun beku" — garis silang tipis diagonal + titik salju,
+   nuansa dingin/musim salju khas Rusia (murni dekoratif, bukan lambang
+   negara tertentu). */
+.motif-frost {
+  background-image: radial-gradient(
+      circle at 10px 10px,
+      rgba(255, 255, 255, 0.20) 0 1.5px,
+      transparent 1.5px
+    ),
+    linear-gradient(60deg, rgba(255, 255, 255, 0.10) 1px, transparent 1px),
+    linear-gradient(-60deg, rgba(255, 255, 255, 0.10) 1px, transparent 1px);
+  background-size: 20px 20px, 24px 24px, 24px 24px;
+}
+
+::selection {
+  background: #f4a6b7;
+  color: #1b2e4b;
+}
+
+/* Fokus keyboard yang jelas untuk aksesibilitas */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #274472;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar tipis */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.25);
+  border-radius: 8px;
+}
+
+/* Skeleton loading shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--color-ink) / 0.06);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--color-ink) / 0.06),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
