@@ -41,7 +41,7 @@
 // CACHE_VERSION di bawah supaya semua cache lama otomatis dibersihkan saat
 // pengguna membuka app versi baru (lihat listener "activate").
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v3";
 const STATIC_CACHE = `nazlingo-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `nazlingo-pages-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
@@ -55,17 +55,53 @@ const PRECACHE_URLS = [
   "/icons/icon-512.png",
 ];
 
+// v2: sebelumnya halaman baru masuk PAGES_CACHE setelah pernah dibuka
+// online sekali (lihat networkFirstForPages). Konsekuensinya: tab utama
+// yang belum pernah diklik sama sekali akan kena /offline.html walau
+// tab-nya sendiri sebenarnya statis & sama buat semua orang. Makanya
+// tab-tab utama ini (bukan halaman dinamis seperti /lesson/[unitId], yang
+// isinya beda-beda & tidak bisa ditebak di awal) langsung di-precache juga
+// pas service worker pertama kali dipasang, supaya begitu app pernah
+// dibuka online SEKALI SAJA (buat instal SW-nya), semua tab utama sudah
+// langsung siap dipakai offline tanpa harus mengunjungi satu-satu dulu.
+const PAGES_TO_PRECACHE = [
+  "/",
+  "/achievements",
+  "/alphabet",
+  "/hiragana",
+  "/profile",
+  "/review",
+  "/shop",
+];
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .catch(() => {
+    (async () => {
+      try {
+        const staticCache = await caches.open(STATIC_CACHE);
+        await staticCache.addAll(PRECACHE_URLS);
+      } catch (err) {
         // Diam saja kalau gagal pre-cache (mis. install pertama tanpa
         // internet sama sekali) — service worker tetap terpasang, cuma
         // cache awalnya kosong dan akan terisi seiring pemakaian.
-      })
+      }
+
+      // Pre-cache halaman satu-satu (bukan addAll) supaya kalau salah satu
+      // gagal (mis. jaringan lambat pas instal pertama), yang lain tetap
+      // berhasil masuk cache — tidak semua-atau-tidak-sama-sekali.
+      const pagesCache = await caches.open(PAGES_CACHE);
+      await Promise.allSettled(
+        PAGES_TO_PRECACHE.map(async (url) => {
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (res && res.ok) await pagesCache.put(url, res.clone());
+          } catch (err) {
+            // Lewati saja halaman ini, tidak mengganggu instalasi SW.
+          }
+        })
+      );
+    })()
   );
 });
 
@@ -85,6 +121,41 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Dipakai oleh tombol "Siapkan offline" di halaman Profil. Beda dari
+// precache otomatis pas install (yang jalan diam-diam), ini dipicu manual
+// oleh pengguna lewat postMessage dari halaman, dan progressnya dilaporkan
+// balik supaya bisa ditampilkan di UI (bukan "hitam kotak").
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || data.type !== "NAZLINGO_CACHE_URLS" || !Array.isArray(data.urls)) return;
+
+  event.waitUntil(cacheUrlsWithProgress(data.urls, event.source));
+});
+
+async function cacheUrlsWithProgress(urls, client) {
+  const cache = await caches.open(PAGES_CACHE);
+  const total = urls.length;
+  let done = 0;
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res && res.ok) await cache.put(url, res.clone());
+    } catch (err) {
+      // Lewati URL ini, lanjut ke berikutnya — satu URL gagal (mis. koneksi
+      // putus di tengah) tidak boleh menggagalkan semua yang lain.
+    }
+    done += 1;
+    if (client) {
+      client.postMessage({ type: "NAZLINGO_CACHE_PROGRESS", done, total });
+    }
+  }
+
+  if (client) {
+    client.postMessage({ type: "NAZLINGO_CACHE_DONE", done, total });
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
@@ -100,7 +171,13 @@ self.addEventListener("fetch", (event) => {
   // (1) Navigasi halaman penuh (buka URL baru / reload / kembali dari
   // background) → network-first dengan fallback ke cache halaman itu.
   if (request.mode === "navigate") {
-    event.respondWith(networkFirstForPages(request));
+    // Halaman lesson (/lesson/[unitId]/[lessonId]) dapat penanganan
+    // khusus — lihat networkFirstForLesson di bawah untuk alasannya.
+    if (url.pathname.startsWith("/lesson/")) {
+      event.respondWith(networkFirstForLesson(request));
+    } else {
+      event.respondWith(networkFirstForPages(request));
+    }
     return;
   }
 
@@ -151,6 +228,52 @@ async function networkFirstForPages(request) {
     const cached = await cache.match(request);
     if (cached) return cached;
 
+    const staticCache = await caches.open(STATIC_CACHE);
+    const offline = await staticCache.match(OFFLINE_URL);
+    if (offline) return offline;
+
+    return new Response("Offline", { status: 503, statusText: "Offline" });
+  }
+}
+
+// Halaman lesson (/lesson/[unitId]/[lessonId]) adalah komponen client
+// ("use client") murni: kontennya (soal, kosakata, dst) sudah ikut ter-
+// bundle di JS lewat data/curriculum.*.ts, dan dirender di browser
+// berdasarkan URL asli (useParams) — bukan dari isi HTML yang di-serve
+// server. Artinya shell HTML/JS untuk SATU lesson sama persis dengan
+// lesson lain manapun (bahasa/unit/lesson apa pun).
+//
+// Konsekuensi baiknya: kalau offline & buka lesson yang belum pernah
+// di-cache PERSIS di URL itu, kita tidak perlu langsung menyerah ke
+// offline.html — cukup pakai shell dari lesson LAIN yang kebetulan
+// sudah tersimpan (mis. dari tombol "Siapkan offline" di halaman
+// Profil), dan tetap akan render benar karena kontennya dibaca dari URL
+// asli di browser, bukan dari HTML yang dikembalikan di sini.
+async function networkFirstForLesson(request) {
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) {
+      const cache = await caches.open(PAGES_CACHE);
+      cache.put(request, fresh.clone()).catch(() => {});
+    }
+    return fresh;
+  } catch (err) {
+    const cache = await caches.open(PAGES_CACHE);
+
+    // 1) Coba URL lesson ini persis, kalau memang sudah pernah dibuka/di-cache.
+    const exact = await cache.match(request);
+    if (exact) return exact;
+
+    // 2) Kalau belum, pakai shell dari lesson lain mana pun yang sudah
+    // tersimpan (aman, lihat penjelasan di atas fungsi ini).
+    const keys = await cache.keys();
+    const lessonKey = keys.find((k) => new URL(k.url).pathname.startsWith("/lesson/"));
+    if (lessonKey) {
+      const genericShell = await cache.match(lessonKey);
+      if (genericShell) return genericShell;
+    }
+
+    // 3) Belum ada satu pun lesson tersimpan sama sekali → fallback terakhir.
     const staticCache = await caches.open(STATIC_CACHE);
     const offline = await staticCache.match(OFFLINE_URL);
     if (offline) return offline;

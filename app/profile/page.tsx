@@ -31,6 +31,7 @@ import {
 import XpChart from "@/components/XpChart";
 import WeakWords from "@/components/WeakWords";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import OfflineDownload from "@/components/OfflineDownload";
 
 export default function ProfilePage() {
   const { progress, setProgress, ready } = useProgress();
@@ -201,6 +202,8 @@ export default function ProfilePage() {
           </div>
           <LanguageSwitcher />
         </div>
+
+        <OfflineDownload />
 
         <SettingRow
           icon={
