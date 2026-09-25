@@ -176,12 +176,12 @@ function ReviewIntro({
       </div>
       <h1 className="mt-6 font-display text-2xl font-bold">Ulangi Kosakata</h1>
       <p className="mt-2 text-ink/50">
-        Latihan berulang kosakata {languageLabel} membantu kata-kata menempel di ingatan jangka panjang.
+        Ngulang-ngulang kosakata {languageLabel} bikin kata-katanya nempel lebih lama di kepala.
       </p>
 
       {count === 0 ? (
         <p className="mt-8 rounded-2xl bg-surface p-5 text-sm text-ink/50 shadow-card">
-          Selesaikan beberapa pelajaran dulu di halaman Belajar supaya ada
+          Selesain dulu beberapa pelajaran di halaman Belajar, biar ada
           kosakata yang bisa diulang di sini.
         </p>
       ) : (

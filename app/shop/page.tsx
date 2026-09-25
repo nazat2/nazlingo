@@ -17,7 +17,7 @@ export default function ShopPage() {
 
   function handleBuyFreeze() {
     if (progress.gems < STREAK_FREEZE_COST) {
-      flash("Permata tidak cukup");
+      flash("Permatanya kurang nih");
       return;
     }
     setProgress((p) => buyStreakFreeze(p));

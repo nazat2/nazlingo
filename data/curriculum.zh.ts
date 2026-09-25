@@ -642,7 +642,7 @@ export const ZH_RAW: RawUnit[] = [
           ["慢慢来", "man man lai", "pelan-pelan"],
           ["你明白吗", "ni ming bai ma", "apakah kamu mengerti?"],
           ["开动了", "kai dong le", "ucapan sebelum makan"],
-          ["吃饱了", "chi bao le", "ucapan setelah makan"],
+          ["吃饱了", "chi bao le", "ucapan terima kasih setelah makan"],
         ],
       },
       {
@@ -783,9 +783,9 @@ export const ZH_RAW: RawUnit[] = [
         subtitle: "Kata depan dan ungkapan penghubung lanjutan",
         words: [
           ["跟", "gen", "dengan / dan"],
-          ["的", "de", "kepunyaan ('nya')"],
-          ["向", "xiang", "ke arah"],
-          ["在", "zai", "di (lokasi kegiatan)"],
+          ["的", "de", "kepunyaan (partikel 'nya')"],
+          ["向", "xiang", "ke arah (partikel)"],
+          ["在", "zai", "di (lokasi kegiatan, partikel)"],
           ["从", "cong", "dari"],
           ["直到", "zhi dao", "sampai"],
           ["关于", "guan yu", "tentang"],
