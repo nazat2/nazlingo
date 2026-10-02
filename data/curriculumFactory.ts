@@ -1,5 +1,6 @@
 import { Unit, Vocab, Lesson } from "@/lib/types";
 import { LanguageCode } from "@/lib/languages";
+import { normalizeMeaning } from "@/lib/meaning";
 
 // Format penulisan kompak: [kata, cara_baca, arti_indonesia, contoh?, contoh_arti?]
 export type RawWord = [string, string, string, string?, string?];
@@ -30,15 +31,24 @@ function makeLesson(
   words: RawWord[]
 ): Lesson {
   const id = `${unitId}-l${lessonNum}`;
-  const vocab: Vocab[] = words.map((w, i) => ({
-    id: `${id}-${i}`,
-    jp: w[0],
-    romaji: w[1],
-    id_: w[2],
-    example: w[3],
-    exampleId: w[4],
-    lang,
-  }));
+  // Arti mentah di data boleh lengkap (mis. "baik / sehat", "dia (laki-laki)"),
+  // tapi yang masuk ke aplikasi SELALU satu arti utama saja — lihat
+  // lib/meaning.ts. Catatan dalam kurung jadi `hint`; arti lain disimpan di
+  // `alt` (tidak pernah ditampilkan, hanya melonggarkan pengecekan ketikan).
+  const vocab: Vocab[] = words.map((w, i) => {
+    const m = normalizeMeaning(w[2]);
+    return {
+      id: `${id}-${i}`,
+      jp: w[0],
+      romaji: w[1],
+      id_: m.meaning,
+      hint: m.note,
+      alt: m.alternates.length > 0 ? m.alternates : undefined,
+      example: w[3],
+      exampleId: w[4],
+      lang,
+    };
+  });
   return { id, unitId, title, subtitle, vocab };
 }
 

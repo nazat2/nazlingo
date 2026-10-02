@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Volume2 } from "lucide-react";
-import { speakText, isVoiceMissing, isSpeechSupported } from "@/lib/tts";
+import {
+  speakText,
+  isVoiceMissing,
+  isSpeechSupported,
+  isSpeakingText,
+  subscribeSpeaking,
+} from "@/lib/tts";
+import { toSpeakable } from "@/lib/speakable";
 import { cn } from "@/lib/cn";
 import { LanguageCode } from "@/lib/languages";
 
@@ -29,23 +36,36 @@ export default function SpeakButton({
   autoLabel?: string;
 }) {
   const [showNotice, setShowNotice] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
+      if (checkTimer.current) clearTimeout(checkTimer.current);
     };
   }, []);
+
+  // Tombol berdenyut selama kata INI sedang diucapkan, jadi pengguna tahu
+  // suaranya memang sedang diputar (bukan tombol yang "tidak bereaksi").
+  useEffect(() => {
+    const spoken = toSpeakable(text);
+    const update = () => setPlaying(isSpeakingText(spoken));
+    update();
+    return subscribeSpeaking(update);
+  }, [text]);
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
     speakText(text, lang);
 
     // Voice untuk lang tertentu baru sempat dicek/di-cache pertama kali saat
-    // speakText/pickVoice dipanggil, jadi tunggu sedikit sebelum menilai
-    // status "tidak ada" — supaya tidak keliru nampilin notice terlalu dini.
+    // speakText dipanggil, jadi tunggu sedikit sebelum menilai status "tidak
+    // ada" — supaya tidak keliru nampilin notice terlalu dini.
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    setTimeout(() => {
+    if (checkTimer.current) clearTimeout(checkTimer.current);
+    checkTimer.current = setTimeout(() => {
       if (!isSpeechSupported() || isVoiceMissing(lang)) {
         setShowNotice(true);
         hideTimer.current = setTimeout(() => setShowNotice(false), 6000);
@@ -60,7 +80,8 @@ export default function SpeakButton({
         onClick={handleClick}
         aria-label={autoLabel}
         className={cn(
-          "flex items-center justify-center rounded-full bg-indigo/10 p-2.5 text-indigo transition-transform hover:scale-105 active:scale-95",
+          "flex items-center justify-center rounded-full p-2.5 transition-transform hover:scale-105 active:scale-95",
+          playing ? "animate-pulse bg-indigo text-white" : "bg-indigo/10 text-indigo",
           className
         )}
       >

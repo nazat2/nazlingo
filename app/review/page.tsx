@@ -129,12 +129,22 @@ export default function ReviewPage() {
     } else {
       setWrongCount((c) => c + 1);
       setBannerState("wrong");
-      setBannerAnswer(current.romaji);
+      setBannerAnswer(current.answerDisplay ?? current.romaji);
     }
   }
 
   function handleContinue() {
     setBannerState("idle");
+    advance();
+  }
+
+  // Soal dilewati tanpa dinilai — lihat catatan yang sama di lesson page.
+  function handleSkip() {
+    if (bannerState !== "idle") return;
+    advance();
+  }
+
+  function advance() {
     if (index + 1 >= queue!.length) {
       setProgress((p) => addXp(p, REVIEW_XP));
       setFinished(true);
@@ -147,7 +157,12 @@ export default function ReviewPage() {
     <div className="flex min-h-[calc(100vh-65px)] flex-col">
       <ExerciseHeader progressPercent={progressPercent} lang={language} />
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
-        <ExerciseCard key={current.id} exercise={current} onResult={handleResult} />
+        <ExerciseCard
+          key={current.id}
+          exercise={current}
+          onResult={handleResult}
+          onSkip={handleSkip}
+        />
       </div>
       <FeedbackBanner
         state={bannerState}
@@ -176,12 +191,12 @@ function ReviewIntro({
       </div>
       <h1 className="mt-6 font-display text-2xl font-bold">Ulangi Kosakata</h1>
       <p className="mt-2 text-ink/50">
-        Ngulang-ngulang kosakata {languageLabel} bikin kata-katanya nempel lebih lama di kepala.
+        Latihan berulang kosakata {languageLabel} membantu kata-kata menempel di ingatan jangka panjang.
       </p>
 
       {count === 0 ? (
         <p className="mt-8 rounded-2xl bg-surface p-5 text-sm text-ink/50 shadow-card">
-          Selesain dulu beberapa pelajaran di halaman Belajar, biar ada
+          Selesaikan beberapa pelajaran dulu di halaman Belajar supaya ada
           kosakata yang bisa diulang di sini.
         </p>
       ) : (

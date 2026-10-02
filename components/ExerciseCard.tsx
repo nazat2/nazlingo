@@ -9,9 +9,9 @@ import SpeakButton from "@/components/SpeakButton";
 import ClickableText from "@/components/ClickableText";
 import { useProgress } from "@/lib/ProgressContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { speakText } from "@/lib/tts";
+import { speakText, stopSpeaking, runWhenSpeechIdle } from "@/lib/tts";
 import { playCorrectSound, playWrongSound } from "@/lib/sound";
-import { checkTypoTolerant } from "@/lib/levenshtein";
+import { checkTypedAnswer } from "@/lib/answers";
 import {
   isSpeechRecognitionSupported,
   listenOnce,
@@ -22,9 +22,14 @@ import { Mic } from "lucide-react";
 type Props = {
   exercise: Exercise;
   onResult: (correct: boolean) => void;
+  /** Soal dilewati tanpa dinilai (mis. soal bicara saat tidak bisa bicara):
+   *  TIDAK dihitung benar maupun salah dan tidak mengubah progres kata. */
+  onSkip?: () => void;
 };
 
-export default function ExerciseCard({ exercise, onResult }: Props) {
+const TYPED_TYPES: Exercise["type"][] = ["type_meaning", "type_target"];
+
+export default function ExerciseCard({ exercise, onResult, onSkip }: Props) {
   const { progress } = useProgress();
   const [selected, setSelected] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "correct" | "wrong">("idle");
@@ -37,8 +42,14 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
   );
   const [speakNote, setSpeakNote] = useState<string | null>(null);
   const stopListeningRef = useRef<(() => void) | null>(null);
+  // Kunci "sudah dijawab" yang berlaku SEKETIKA (ref), bukan menunggu render
+  // ulang seperti state `status`. Tanpa ini, ketukan ganda cepat / Enter lalu
+  // klik tombol Periksa bisa mengirim hasil dua kali dan menghitung jawaban
+  // dobel (XP & statistik kata ikut dobel).
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
+    resolvedRef.current = false;
     setSelected(null);
     setStatus("idle");
     setTyped("");
@@ -47,16 +58,19 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
     setTypoNote(null);
     setSpeakNote(null);
     setSpeakState(isSpeechRecognitionSupported() ? "idle" : "unsupported");
+    let autoplay: ReturnType<typeof setTimeout> | null = null;
     if (exercise.type === "listen_choose" && exercise.jp) {
-      const t = setTimeout(() => speakText(exercise.jp!, exercise.lang), 350);
-      return () => clearTimeout(t);
+      autoplay = setTimeout(() => speakText(exercise.jp!, exercise.lang), 350);
     }
-    // Kalau pengguna pindah soal (mis. tekan "Lanjut") sementara mic masih
-    // aktif dengar, hentikan dulu supaya hasilnya tidak "nyasar" ke soal
-    // berikutnya.
     return () => {
+      if (autoplay) clearTimeout(autoplay);
+      // Kalau pengguna pindah soal (mis. tekan "Lanjut") sementara mic masih
+      // aktif dengar, hentikan dulu supaya hasilnya tidak "nyasar" ke soal
+      // berikutnya. Suara kata soal ini juga dihentikan supaya tidak
+      // terdengar tumpang tindih dengan soal berikutnya.
       stopListeningRef.current?.();
       stopListeningRef.current = null;
+      stopSpeaking();
     };
   }, [exercise]);
 
@@ -64,49 +78,54 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
 
   function playFeedback(correct: boolean) {
     if (!progress.soundEnabled) return;
-    if (correct) playCorrectSound();
-    else playWrongSound();
+    // Tunggu ucapan kata yang sedang main selesai dulu — bunyi "ting" yang
+    // menabrak TTS bisa memotong suara kata di sebagian HP.
+    runWhenSpeechIdle(() => {
+      if (correct) playCorrectSound();
+      else playWrongSound();
+    });
+  }
+
+  /** Satu-satunya pintu keluar hasil jawaban: pasti hanya terkirim SEKALI per soal. */
+  function resolve(correct: boolean) {
+    if (resolvedRef.current) return false;
+    resolvedRef.current = true;
+    setStatus(correct ? "correct" : "wrong");
+    playFeedback(correct);
+    onResult(correct);
+    return true;
   }
 
   function commitChoice(optionId: string, correct: boolean) {
-    if (isChecked) return;
+    if (resolvedRef.current) return;
     setSelected(optionId);
-    setStatus(correct ? "correct" : "wrong");
-    playFeedback(correct);
-    onResult(correct);
+    resolve(correct);
   }
 
   function checkTyped() {
-    if (isChecked || !exercise.answer) return;
-    const result = checkTypoTolerant(typed, exercise.answer);
+    if (resolvedRef.current || typed.trim().length === 0) return;
+    const result = checkTypedAnswer(exercise, typed);
     const correct = result !== "wrong";
-    setStatus(correct ? "correct" : "wrong");
-    if (result === "typo") setTypoNote(exercise.answer);
-    playFeedback(correct);
-    onResult(correct);
+    if (!resolve(correct)) return;
+    if (result === "typo") setTypoNote(exercise.answerDisplay ?? exercise.meaning ?? null);
   }
 
   function checkBuild(nextBuilt: string[]) {
     if (!exercise.answer) return;
     if (nextBuilt.length !== (exercise.scrambled?.length || 0)) return;
-    const correct = nextBuilt.join("") === exercise.answer;
-    setStatus(correct ? "correct" : "wrong");
-    playFeedback(correct);
-    onResult(correct);
+    resolve(nextBuilt.join("") === exercise.answer);
   }
 
   function startSpeaking() {
-    if (isChecked || speakState === "listening" || !exercise.answer) return;
+    if (resolvedRef.current || speakState === "listening" || !exercise.answer) return;
     setSpeakState("listening");
     setSpeakNote(null);
     stopListeningRef.current = listenOnce(exercise.lang, {
       onResult: (transcript) => {
         const result = checkPronunciation(transcript, exercise.answer!);
         const correct = result !== "wrong";
-        setStatus(correct ? "correct" : "wrong");
+        if (!resolve(correct)) return;
         if (result === "close") setSpeakNote(exercise.jp || exercise.answer!);
-        playFeedback(correct);
-        onResult(correct);
       },
       onError: (reason) => {
         // "not-allowed" (izin ditolak) itu satu-satunya yang bener-bener
@@ -134,21 +153,22 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
     });
   }
 
-  // Dilewati tanpa dianggap salah — konsisten dengan filosofi app ini yang
-  // memang tidak ada sistem nyawa/penalti (lihat catatan di lesson page),
-  // dan menghindari memaksa pengguna yang sedang di tempat umum/tidak bisa
-  // bicara untuk tetap direkam.
+  // Dilewati TANPA dinilai: tidak dihitung benar (jadi tidak mengangkat
+  // akurasi / level hafalan kata secara palsu) dan tidak dihitung salah
+  // (app ini memang tidak punya nyawa/penalti, dan pengguna di tempat umum
+  // tidak boleh dipaksa bicara). Soal langsung dilanjut ke berikutnya.
   function skipSpeak() {
-    if (isChecked) return;
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
     stopListeningRef.current?.();
-    setStatus("correct");
-    onResult(true);
+    stopListeningRef.current = null;
+    onSkip?.();
   }
 
   return (
     <div
       // pb-32: beri ruang kosong di dasar konten yang bisa discroll, supaya
-      // tombol "Periksa" (type_romaji, sebelum dijawab) maupun banner
+      // tombol "Periksa" (soal ketik, sebelum dijawab) maupun banner
       // "Benar sekali!/Belum tepat" + tombol "Lanjut" (setelah dijawab,
       // semua tipe soal) — yang keduanya fixed di dasar layar — tidak
       // pernah menutupi konten atau membuatnya sulit dijangkau.
@@ -178,8 +198,8 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
             />
           )}
 
-        {exercise.type === "type_romaji" && (
-          <TypeRomajiBlock
+        {TYPED_TYPES.includes(exercise.type) && (
+          <TypedAnswerBlock
             exercise={exercise}
             typed={typed}
             setTyped={setTyped}
@@ -219,13 +239,13 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
         status={status}
         exercise={exercise}
         canCheck={
-          (exercise.type === "type_romaji" && typed.trim().length > 0) ||
+          (TYPED_TYPES.includes(exercise.type) && typed.trim().length > 0) ||
           (exercise.type === "build_word" &&
             built.length === (exercise.scrambled?.length || 0) &&
             built.length > 0)
         }
         onCheck={() => {
-          if (exercise.type === "type_romaji") checkTyped();
+          if (TYPED_TYPES.includes(exercise.type)) checkTyped();
         }}
       />
     </div>
@@ -233,28 +253,37 @@ export default function ExerciseCard({ exercise, onResult }: Props) {
 }
 
 function Instruction({ type, lang }: { type: Exercise["type"]; lang: LanguageCode }) {
-  // BUG LAMA: label soal type_romaji & build_word sebelumnya hardcode kata
-  // "romaji" buat SEMUA bahasa — padahal "romaji" itu istilah khusus cara
-  // baca Bahasa Jepang. Mandarin semestinya "pinyin", Arab "transliterasi",
-  // dan Inggris (yang sudah huruf Latin asli) lebih pas disebut "ejaan".
-  // Sekarang istilahnya diambil dari readingLabel per bahasa (lib/languages.ts).
-  const readingLabel = getLanguageMeta(lang).readingLabel;
+  // Istilah "cara baca" berbeda tiap bahasa (romaji / pinyin / transliterasi /
+  // ejaan) — diambil dari readingLabel per bahasa (lib/languages.ts), bukan
+  // hardcode "romaji" untuk semuanya.
+  const meta = getLanguageMeta(lang);
   const text: Record<Exercise["type"], string> = {
     mc_jp_to_id: "Apa artinya?",
     mc_id_to_jp: "Pilih kata yang tepat",
-    // Disamakan dengan mc_jp_to_id ("Apa artinya?") karena sekarang soal ini
-    // juga menampilkan teks kata targetnya (lihat listenChoose() di
-    // lib/exercises.ts) — bukan cuma tombol audio tanpa konteks lagi.
+    // Disamakan dengan mc_jp_to_id ("Apa artinya?") karena soal ini juga
+    // menampilkan teks kata targetnya (lihat listenChoose() di
+    // lib/exercises.ts) — bukan cuma tombol audio tanpa konteks.
     listen_choose: "Apa artinya?",
-    type_romaji: `Ketik cara bacanya (${readingLabel})`,
+    type_meaning: "Tulis artinya dalam Bahasa Indonesia",
+    type_target: `Tulis dalam ${meta.label}`,
     match_pairs: "Jodohkan pasangannya",
-    build_word: `Susun jadi ${readingLabel} yang benar`,
+    build_word: `Susun jadi ${meta.readingLabel} yang benar`,
     speak: "Ucapkan kalimat ini",
   };
+  // Petunjuk tambahan di bawah judul soal.
+  let sub: string | null = null;
+  if (type === "type_target") {
+    sub = meta.latinScript
+      ? "Ketik katanya dalam huruf biasa."
+      : `Boleh pakai huruf asli atau cara baca (${meta.readingLabel}).`;
+  }
   return (
-    <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
-      {text[type]}
-    </h2>
+    <div>
+      <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
+        {text[type]}
+      </h2>
+      {sub && <p className="mt-1 text-sm text-ink/50">{sub}</p>}
+    </div>
   );
 }
 
@@ -269,6 +298,9 @@ function PromptBlock({
     return (
       <div className="mb-6 rounded-2xl bg-surface p-6 text-center shadow-card">
         <p className="text-2xl font-bold text-ink sm:text-3xl">{exercise.prompt}</p>
+        {exercise.hint && (
+          <p className="mt-1 text-sm text-ink/45">({exercise.hint})</p>
+        )}
       </div>
     );
   }
@@ -396,7 +428,7 @@ function OptionGrid({
   );
 }
 
-function TypeRomajiBlock({
+function TypedAnswerBlock({
   exercise,
   typed,
   setTyped,
@@ -413,36 +445,63 @@ function TypeRomajiBlock({
   typoNote: string | null;
   onSubmit: () => void;
 }) {
+  const meta = getLanguageMeta(exercise.lang);
+  const isMeaning = exercise.type === "type_meaning";
+
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex items-center gap-4 rounded-2xl bg-surface p-6 shadow-card">
-        <SpeakButton text={exercise.jp || ""} lang={exercise.lang} />
-        <div>
-          <ClickableText
-            text={exercise.jp || ""}
-            lang={exercise.lang}
-            glossMode="romaji"
-            className="font-display text-3xl font-bold"
-          />
-          <p className="mt-1 text-sm text-ink/50">{exercise.promptSub}</p>
+      {isMeaning ? (
+        // Terjemahkan ke Indonesia: tampilkan kata bahasa target (+ suara).
+        // Ketuk kata di sini sengaja menampilkan CARA BACA (bukan arti),
+        // karena arti-lah yang sedang ditanyakan.
+        <div className="flex items-center gap-4 rounded-2xl bg-surface p-6 shadow-card">
+          <SpeakButton text={exercise.jp || ""} lang={exercise.lang} />
+          <div>
+            <ClickableText
+              text={exercise.jp || ""}
+              lang={exercise.lang}
+              glossMode="romaji"
+              className="font-display text-3xl font-bold"
+            />
+            {showRomaji && exercise.romaji && !meta.latinScript && (
+              <p className="mt-1 font-mono text-sm text-ink/50">{exercise.romaji}</p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        // Tulis dalam bahasa target: tampilkan arti Indonesia saja (tanpa
+        // tombol suara — suara akan membocorkan jawabannya).
+        <div className="rounded-2xl bg-surface p-6 text-center shadow-card">
+          <p className="font-display text-3xl font-bold text-ink">{exercise.prompt}</p>
+          {exercise.hint && (
+            <p className="mt-1 text-sm text-ink/45">({exercise.hint})</p>
+          )}
+        </div>
+      )}
       <input
         value={typed}
         onChange={(e) => setTyped(e.target.value)}
         onKeyDown={(e) => {
+          // Saat mengetik dengan IME (Jepang/Mandarin/dll), Enter dipakai untuk
+          // MEMILIH hasil konversi huruf — jangan dianggap "kirim jawaban".
+          if (e.nativeEvent.isComposing || e.keyCode === 229) return;
           if (e.key === "Enter" && status === "idle" && typed.trim().length > 0) {
             onSubmit();
           }
         }}
         disabled={status !== "idle"}
-        placeholder={`ketik ${getLanguageMeta(exercise.lang).readingLabel} di sini…`}
+        placeholder={
+          isMeaning ? "ketik artinya di sini…" : `ketik dalam ${meta.label.toLowerCase()}…`
+        }
+        lang={isMeaning ? "id" : undefined}
+        dir={isMeaning ? undefined : "auto"}
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
         autoFocus
         className={cn(
-          "w-full max-w-sm rounded-2xl border-2 bg-surface px-5 py-4 text-center font-mono text-lg shadow-card outline-none transition-colors",
+          "w-full max-w-sm rounded-2xl border-2 bg-surface px-5 py-4 text-center text-lg shadow-card outline-none transition-colors",
+          isMeaning ? "font-sans" : "font-mono",
           status === "idle" && "border-ink/10 focus:border-indigo",
           status === "correct" && "border-matcha bg-matcha-pale text-matcha-deep",
           status === "wrong" && "border-torii bg-torii/5 text-torii animate-shake"
@@ -451,12 +510,7 @@ function TypeRomajiBlock({
       {status === "correct" && typoNote && (
         <p className="text-sm text-gold-deep">
           Nyaris tepat! Penulisan yang benar:{" "}
-          <span className="font-mono font-bold">{typoNote}</span>
-        </p>
-      )}
-      {status === "wrong" && showRomaji && (
-        <p className="text-sm text-ink/50">
-          Jawaban benar: <span className="font-mono font-bold text-torii">{exercise.romaji}</span>
+          <span className="font-bold">{typoNote}</span>
         </p>
       )}
     </div>
@@ -510,7 +564,7 @@ function BuildWordBlock({
             // "id" — kalau kata di-ketuk malah muncul ARTI INDONESIANYA,
             // padahal soal ini justru lagi melatih cara baca (romaji/pinyin/
             // transliterasi/ejaan tergantung bahasa), bukan arti. Disamakan
-            // dengan TypeRomajiBlock yang sudah benar dari awal.
+            // dengan blok soal ketik yang sudah benar dari awal.
             glossMode="romaji"
             className="mt-1 font-display text-2xl"
           />
@@ -677,7 +731,7 @@ function FooterAction({
   canCheck: boolean;
   onCheck: () => void;
 }) {
-  if (exercise.type !== "type_romaji") return null;
+  if (!TYPED_TYPES.includes(exercise.type)) return null;
 
   return (
     <AnimatePresence mode="wait">

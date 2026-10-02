@@ -42,6 +42,19 @@ export function getLessonsFor(lang: LanguageCode): Lesson[] {
   return UNITS_BY_LANG[lang].flatMap((u) => u.lessons);
 }
 
+const ALL_VOCAB_CACHE: Partial<Record<LanguageCode, Vocab[]>> = {};
+
+/** Seluruh kosakata satu bahasa (semua unit & pelajaran), di-cache supaya
+ *  tidak dihitung ulang tiap kali dipanggil. */
+export function getAllVocabFor(lang: LanguageCode): Vocab[] {
+  let list = ALL_VOCAB_CACHE[lang];
+  if (!list) {
+    list = getLessonsFor(lang).flatMap((l) => l.vocab);
+    ALL_VOCAB_CACHE[lang] = list;
+  }
+  return list;
+}
+
 function langOfUnitId(unitId: string): LanguageCode {
   // BUG LAMA: fungsi ini cuma cek `unitId.startsWith("en-") ? "en" : "ja"`.
   // Waktu cuma ada 2 bahasa (ja & en) itu kebetulan selalu benar, tapi

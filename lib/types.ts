@@ -9,8 +9,9 @@ export type Vocab = {
   id: string; // unik: unitId-lessonId-index (sudah termasuk prefix bahasa)
   jp: string; // kata dalam bahasa target
   romaji: string; // cara baca / pengucapan
-  id_: string; // arti dalam Bahasa Indonesia
-  hint?: string; // catatan tambahan (opsional)
+  id_: string; // SATU arti utama dalam Bahasa Indonesia (lihat lib/meaning.ts)
+  hint?: string; // catatan pemakaian, mis. "laki-laki" / "santai" (opsional)
+  alt?: string[]; // arti lain yang TIDAK ditampilkan, hanya diterima sebagai jawaban ketikan
   example?: string; // contoh kalimat dalam bahasa target (opsional)
   exampleId?: string; // arti contoh kalimat dalam Bahasa Indonesia (opsional)
   lang: LanguageCode; // bahasa target kosakata ini
@@ -39,7 +40,8 @@ export type ExerciseType =
   | "mc_jp_to_id" // lihat kanji/kana, pilih arti Indonesia
   | "mc_id_to_jp" // lihat arti Indonesia, pilih kata Jepang
   | "listen_choose" // dengar suara, pilih arti
-  | "type_romaji" // ketik romaji dari kata Jepang
+  | "type_meaning" // lihat kata bahasa target, ketik ARTINYA dalam Bahasa Indonesia
+  | "type_target" // lihat arti Indonesia, TULIS kata dalam bahasa target (aksara asli atau cara baca)
   | "match_pairs" // jodohkan kata Jepang & Indonesia
   | "build_word" // susun huruf romaji jadi kata yang benar
   | "speak"; // ucapkan ulang kalimat/kata (speech-to-text, opsional bisa dilewati)
@@ -60,7 +62,10 @@ export type Exercise = {
   jp?: string;
   romaji?: string;
   options?: ExerciseOption[];
-  answer?: string; // untuk type_romaji / build_word
+  answer?: string; // untuk build_word (huruf-huruf tanpa spasi) dan speak (teks target)
+  accepts?: string[]; // untuk type_meaning / type_target: jawaban yang diterima, sudah dinormalisasi
+  answerDisplay?: string; // teks "jawaban yang benar" yang ditampilkan saat salah
+  hint?: string; // catatan pemakaian arti (mis. "laki-laki"), ditampilkan bersama arti Indonesia
   meaning?: string; // arti Indonesia kata ini (ditampilkan saat jawaban benar)
   pairs?: { jp: string; romaji: string; id_: string }[]; // untuk match_pairs
   scrambled?: string[]; // untuk build_word

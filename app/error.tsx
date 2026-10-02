@@ -25,8 +25,8 @@ export default function Error({
         Ups, ada yang salah
       </h1>
       <p className="max-w-sm text-sm text-ink/50">
-        Ada error yang nggak kesangka di halaman ini. Tenang, progres belajarmu
-        aman kok — coba refresh halamannya.
+        Terjadi kesalahan tak terduga di halaman ini. Progres belajarmu aman
+        tersimpan — coba muat ulang halamannya.
       </p>
       <div className="mt-2 flex gap-3">
         <button

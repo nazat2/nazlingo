@@ -230,3 +230,25 @@ Sifat & Perasaan → Kata Kerja Harian → Percakapan Sehari-hari → Kanji Dasa
 **Hiragana** dan **Katakana**. Cocok untuk yang benar-benar belum tahu kosakata maupun cara bacanya sama sekali.
 
 Selamat belajar — 頑張って (ganbatte, semangat)! 🍡
+
+## Catatan pembaruan: logika soal, satu arti per kata, suara
+
+- **Jenis soal ketik sekarang dua arah** (`lib/exercises.ts`, `lib/answers.ts`):
+  `type_meaning` (lihat kata bahasa target → ketik ARTI Indonesia) dan
+  `type_target` (lihat arti Indonesia → TULIS kata dalam bahasa target, boleh
+  aksara asli atau cara baca romaji/pinyin/transliterasi). Berlaku untuk semua
+  bahasa. Jenis soal dibagi merata lewat "kantong" bergilir, jadi tiap
+  pelajaran pasti campuran.
+- **Satu kata = satu arti** (`lib/meaning.ts`): data mentah boleh tetap lengkap,
+  tapi `curriculumFactory` otomatis mengambil SATU arti utama (sebelum "/" dan di
+  luar kurung). Catatan dalam kurung jadi `hint`; arti lain disimpan di `alt`
+  dan tidak pernah ditampilkan (hanya dipakai agar jawaban sah tidak dianggap
+  salah). Berlaku otomatis untuk kosakata baru di bahasa apa pun.
+- **Pengecoh pilihan ganda** tidak lagi berarti sama dengan jawaban benar dan
+  tidak ada pilihan yang tampil kembar.
+- **Suara (TTS)** (`lib/tts.ts`): referensi utterance dipegang sampai selesai,
+  voice lokal diutamakan, retry otomatis (maks 3x) kalau gagal diam-diam,
+  permintaan kembar diabaikan, suara dihentikan saat pindah soal / tab
+  disembunyikan, dan efek "ting" menunggu ucapan selesai.
+- Soal bicara disaring otomatis kalau browser tidak mendukung pengenalan suara;
+  "Tak bisa bicara sekarang" melewati soal tanpa dinilai benar/salah.

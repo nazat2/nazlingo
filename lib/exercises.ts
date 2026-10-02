@@ -1,5 +1,9 @@
 import { Exercise, ExerciseOption, ExerciseType, Lesson, Vocab } from "@/lib/types";
-import { allVocabUpTo, getLessonsFor } from "@/data/curriculum";
+import { allVocabUpTo, getAllVocabFor } from "@/data/curriculum";
+import { getLanguageMeta } from "@/lib/languages";
+import { acceptedWritings, meaningKeysOf, normalizeWriting } from "@/lib/answers";
+import { meaningKey } from "@/lib/meaning";
+import { isSpeechRecognitionSupported } from "@/lib/speech";
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -10,54 +14,55 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// Cache kosakata lengkap per bahasa, dipakai sebagai fallback distraktor.
-// Dibuat lazy (bukan di top-level) supaya tidak dihitung ulang tiap panggilan.
-const fullVocabCache: Partial<Record<Vocab["lang"], Vocab[]>> = {};
-function fullVocabFor(lang: Vocab["lang"]): Vocab[] {
-  if (!fullVocabCache[lang]) {
-    fullVocabCache[lang] = getLessonsFor(lang).flatMap((l) => l.vocab);
-  }
-  return fullVocabCache[lang]!;
+/** Dua kata dianggap "berarti sama" kalau salah satu arti sahnya beririsan
+ *  (arti utama atau arti lain yang tidak ditampilkan). */
+function sharesMeaning(a: Vocab, b: Vocab): boolean {
+  const keysA = meaningKeysOf(a);
+  return meaningKeysOf(b).some((k) => keysA.indexOf(k) !== -1);
 }
 
 /**
- * BUG LAMA: kalau `pool` (kosakata yang sudah "dipelajari sejauh ini") lebih
- * kecil dari `count` — sangat sering terjadi di pelajaran-pelajaran awal
- * tiap unit, karena baru sedikit kata yang dikenal — soal pilihan ganda bisa
- * cuma punya 1-2 opsi jawaban, bukan 4. Sekarang kalau kurang, sisanya
- * diambil dari SELURUH kosakata bahasa itu (termasuk pelajaran yang belum
- * ditempuh) supaya jumlah opsi tetap konsisten 4 di semua pelajaran.
+ * Memilih pengecoh (jawaban salah) untuk soal pilihan ganda.
+ *
+ * Aturan yang dijaga (semuanya pernah jadi sumber soal "membingungkan"):
+ *  - Pengecoh TIDAK BOLEH berarti sama dengan jawaban benar (mis. "Thanks"
+ *    vs "Thank you" sama-sama "terima kasih") — kalau tidak, ada 2 jawaban
+ *    yang sebenarnya benar.
+ *  - Tidak ada dua pilihan yang TAMPILANNYA sama persis (mis. dua kata
+ *    berbeda yang sama-sama berarti "tenang" muncul sebagai dua kotak
+ *    "tenang"). `kind` menentukan apa yang jadi label pilihan: arti
+ *    Indonesia ("meaning") atau kata bahasa target ("target").
+ *  - Kalau kosakata yang sudah dipelajari (`pool`) terlalu sedikit (sering
+ *    terjadi di pelajaran awal tiap unit), sisanya diambil dari SELURUH
+ *    kosakata bahasa itu, supaya jumlah pilihan tetap konsisten 4.
  */
 function pickDistractors(
   pool: Vocab[],
   correct: Vocab,
-  count: number
+  count: number,
+  kind: "meaning" | "target"
 ): Vocab[] {
-  const chosen: Vocab[] = [];
+  const labelOf = (v: Vocab) =>
+    kind === "meaning" ? meaningKey(v.id_) : normalizeWriting(v.jp, v.lang);
+  const usedLabels = new Set<string>([labelOf(correct)]);
   const usedIds = new Set<string>([correct.id]);
+  const chosen: Vocab[] = [];
 
-  const fromPool = shuffle(
-    pool.filter((v) => !usedIds.has(v.id) && v.id_ !== correct.id_)
-  );
-  for (const v of fromPool) {
-    if (chosen.length >= count) break;
-    chosen.push(v);
-    usedIds.add(v.id);
-  }
-
-  if (chosen.length < count) {
-    const fallback = shuffle(
-      fullVocabFor(correct.lang).filter(
-        (v) => !usedIds.has(v.id) && v.id_ !== correct.id_
-      )
-    );
-    for (const v of fallback) {
-      if (chosen.length >= count) break;
+  const consume = (candidates: Vocab[]) => {
+    for (const v of shuffle(candidates)) {
+      if (chosen.length >= count) return;
+      if (usedIds.has(v.id)) continue;
+      const label = labelOf(v);
+      if (!label || usedLabels.has(label)) continue;
+      if (sharesMeaning(correct, v)) continue;
       chosen.push(v);
       usedIds.add(v.id);
+      usedLabels.add(label);
     }
-  }
+  };
 
+  consume(pool);
+  if (chosen.length < count) consume(getAllVocabFor(correct.lang));
   return chosen;
 }
 
@@ -67,8 +72,15 @@ function nextId() {
   return `ex-${Date.now()}-${uid}`;
 }
 
+/** Tampilan "kata + cara baca" untuk bahasa beraksara sendiri, mis.
+ *  "ありがとう (arigatou)". Bahasa Latin (Inggris) cukup kata aslinya. */
+function targetWithReading(v: Vocab): string {
+  if (getLanguageMeta(v.lang).latinScript) return v.jp;
+  return `${v.jp} (${v.romaji})`;
+}
+
 function mcJpToId(vocab: Vocab, pool: Vocab[]): Exercise {
-  const distractors = pickDistractors(pool, vocab, 3);
+  const distractors = pickDistractors(pool, vocab, 3, "meaning");
   const options: ExerciseOption[] = shuffle([
     { id: vocab.id, label: vocab.id_, correct: true },
     ...distractors.map((d) => ({ id: d.id, label: d.id_, correct: false })),
@@ -85,12 +97,13 @@ function mcJpToId(vocab: Vocab, pool: Vocab[]): Exercise {
     example: vocab.example,
     exampleId: vocab.exampleId,
     meaning: vocab.id_,
+    answerDisplay: vocab.id_,
     lang: vocab.lang,
   };
 }
 
 function mcIdToJp(vocab: Vocab, pool: Vocab[]): Exercise {
-  const distractors = pickDistractors(pool, vocab, 3);
+  const distractors = pickDistractors(pool, vocab, 3, "target");
   const options: ExerciseOption[] = shuffle([
     { id: vocab.id, label: vocab.jp, sub: vocab.romaji, correct: true },
     ...distractors.map((d) => ({ id: d.id, label: d.jp, sub: d.romaji, correct: false })),
@@ -99,24 +112,25 @@ function mcIdToJp(vocab: Vocab, pool: Vocab[]): Exercise {
     id: nextId(),
     type: "mc_id_to_jp",
     prompt: vocab.id_,
+    promptSub: vocab.hint,
     vocabId: vocab.id,
     jp: vocab.jp,
     romaji: vocab.romaji,
     options,
     meaning: vocab.id_,
+    hint: vocab.hint,
+    answerDisplay: targetWithReading(vocab),
     lang: vocab.lang,
   };
 }
 
 function listenChoose(vocab: Vocab, pool: Vocab[]): Exercise {
-  // Dulu soal ini cuma nampilin tombol putar audio tanpa teksnya sama
-  // sekali (murni "dengarkan lalu pilih"), jadi kesannya acak/ga jelas:
-  // pengguna disuruh dengar kata yang belum pernah mereka tahu artinya
-  // ataupun tulisannya. Sekarang disamakan dengan mc_jp_to_id — teks kata
-  // target (+ romaji + contoh kalimat kalau ada) tetap ditampilkan, cuma
-  // beda tipe soal ini sengaja naruh tombol putar audio paling menonjol
-  // (lihat SpeakButton di PromptBlock) buat tetap melatih pendengaran.
-  const distractors = pickDistractors(pool, vocab, 3);
+  // Teks kata target (+ romaji + contoh kalimat kalau ada) tetap ditampilkan
+  // — sama seperti mc_jp_to_id — supaya pemula yang baru PERTAMA kali
+  // bertemu kata ini tidak disuruh menebak sesuatu yang belum pernah
+  // dilihat. Bedanya, di tipe ini tombol audio yang paling menonjol dan
+  // suaranya diputar otomatis saat soal muncul (lihat ExerciseCard).
+  const distractors = pickDistractors(pool, vocab, 3, "meaning");
   const options: ExerciseOption[] = shuffle([
     { id: vocab.id, label: vocab.id_, correct: true },
     ...distractors.map((d) => ({ id: d.id, label: d.id_, correct: false })),
@@ -133,21 +147,66 @@ function listenChoose(vocab: Vocab, pool: Vocab[]): Exercise {
     example: vocab.example,
     exampleId: vocab.exampleId,
     meaning: vocab.id_,
+    answerDisplay: vocab.id_,
     lang: vocab.lang,
   };
 }
 
-function typeRomaji(vocab: Vocab): Exercise {
+/**
+ * Soal ketik #1 — TERJEMAHKAN ke Bahasa Indonesia: pengguna melihat kata
+ * bahasa target (+ suara) lalu mengetik ARTInya. Jawaban yang diterima =
+ * arti utama, ditambah arti lain dari data yang sebenarnya juga benar
+ * (tidak pernah ditampilkan, cuma biar jawaban sah tidak dihitung salah).
+ */
+function typeMeaning(vocab: Vocab): Exercise {
   return {
     id: nextId(),
-    type: "type_romaji",
+    type: "type_meaning",
     prompt: vocab.jp,
-    promptSub: vocab.id_,
+    promptSub: vocab.romaji,
     vocabId: vocab.id,
     jp: vocab.jp,
     romaji: vocab.romaji,
-    answer: vocab.romaji.toLowerCase().replace(/\s+/g, " ").trim(),
+    accepts: meaningKeysOf(vocab),
+    answerDisplay: vocab.id_,
     meaning: vocab.id_,
+    example: vocab.example,
+    exampleId: vocab.exampleId,
+    lang: vocab.lang,
+  };
+}
+
+/**
+ * Soal ketik #2 — TULIS dalam bahasa target: pengguna melihat arti
+ * Indonesia lalu menulis katanya. Boleh pakai aksara asli (ありがとう) ATAU
+ * cara baca Latin (arigatou) — lihat lib/answers.ts. Kalau beberapa kata
+ * berarti sama (sinonim, mis. "Thanks"/"Thank you"), SEMUANYA diterima.
+ */
+function typeTarget(vocab: Vocab): Exercise {
+  const key = meaningKey(vocab.id_);
+  const accepts: string[] = [];
+  const addAll = (list: string[]) =>
+    list.forEach((w) => {
+      if (accepts.indexOf(w) === -1) accepts.push(w);
+    });
+  addAll(acceptedWritings(vocab));
+  for (const other of getAllVocabFor(vocab.lang)) {
+    if (other.id !== vocab.id && meaningKeysOf(other).indexOf(key) !== -1) {
+      addAll(acceptedWritings(other));
+    }
+  }
+  return {
+    id: nextId(),
+    type: "type_target",
+    prompt: vocab.id_,
+    promptSub: vocab.hint,
+    vocabId: vocab.id,
+    jp: vocab.jp,
+    romaji: vocab.romaji,
+    accepts,
+    answerDisplay: targetWithReading(vocab),
+    meaning: vocab.id_,
+    hint: vocab.hint,
     lang: vocab.lang,
   };
 }
@@ -196,19 +255,12 @@ function splitIntoChunksGeneric(word: string): string[] | null {
   return null;
 }
 
-function buildWord(vocab: Vocab): Exercise {
-  // Pecah kata jadi beberapa bagian untuk disusun ulang. Bahasa Jepang
-  // dipecah per suku kata (mora) romaji yang polanya khas (lihat
-  // splitIntoSyllables); bahasa lain dipecah per gugus konsonan+vokal yang
-  // lebih generik (lihat splitIntoChunksGeneric) supaya kata panjang tidak
-  // jadi puluhan kotak huruf satu-satu. Keduanya SELALU diverifikasi hasil
-  // gabungannya sama persis dengan kata asal — kalau gagal, baru jatuh ke
-  // pemecahan per huruf polos (inilah penyebab bug lama: "teacher" jadi
-  // kehilangan huruf "r" waktu pemecahan suku kata dipaksakan tanpa verifikasi).
-  const clean = vocab.romaji.toLowerCase().replace(/[^a-z ]/g, "");
+/** Pecah cara baca jadi potongan-potongan untuk soal susun-kata. Selalu
+ *  menghasilkan potongan yang jika digabung SAMA PERSIS dengan `clean`. */
+function chunkReading(clean: string, lang: Vocab["lang"]): string[] {
   const chunks = clean.split(" ").flatMap((word) => {
     if (!word) return [];
-    if (vocab.lang === "ja") {
+    if (lang === "ja") {
       const syll = splitIntoSyllables(word);
       if (syll) return syll;
     } else {
@@ -217,7 +269,26 @@ function buildWord(vocab: Vocab): Exercise {
     }
     return word.split("");
   });
-  const scrambled = shuffle(chunks.length > 1 ? chunks : [...clean]);
+  return chunks.length > 1 ? chunks : [...clean.replace(/\s+/g, "")];
+}
+
+function cleanReading(vocab: Vocab): string {
+  return vocab.romaji.toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Soal susun-kata hanya masuk akal kalau ada minimal 3 huruf untuk disusun. */
+function canBuildWord(vocab: Vocab): boolean {
+  return cleanReading(vocab).replace(/\s+/g, "").length >= 3;
+}
+
+function buildWord(vocab: Vocab): Exercise {
+  // Bahasa Jepang dipecah per suku kata (mora) romaji; bahasa lain per gugus
+  // konsonan+vokal. Keduanya SELALU diverifikasi hasil gabungannya sama persis
+  // dengan kata asal — kalau gagal, jatuh ke pemecahan per huruf polos supaya
+  // tidak ada huruf yang hilang.
+  const clean = cleanReading(vocab);
+  const answer = clean.replace(/\s+/g, "");
+  const scrambled = shuffle(chunkReading(clean, vocab.lang));
   return {
     id: nextId(),
     type: "build_word",
@@ -226,9 +297,11 @@ function buildWord(vocab: Vocab): Exercise {
     vocabId: vocab.id,
     jp: vocab.jp,
     romaji: vocab.romaji,
-    answer: clean.replace(/\s+/g, ""),
+    answer,
     scrambled,
     meaning: vocab.id_,
+    hint: vocab.hint,
+    answerDisplay: vocab.romaji,
     lang: vocab.lang,
   };
 }
@@ -248,6 +321,7 @@ function speakPrompt(vocab: Vocab): Exercise {
     romaji: vocab.romaji,
     answer: target,
     meaning: vocab.id_,
+    answerDisplay: target,
     lang: vocab.lang,
   };
 }
@@ -260,24 +334,74 @@ function speakPrompt(vocab: Vocab): Exercise {
 const RECOGNITION_TYPES: ExerciseType[] = ["mc_jp_to_id", "listen_choose"];
 
 // Jenis soal yang menuntut MENGINGAT atau MEMPRODUKSI kata itu sendiri
-// (bukan cuma mengenali di antara pilihan) — pantas dipakai di ronde
-// pengulangan, setelah kata itu sudah sempat diperkenalkan lebih dulu di
-// pelajaran yang sama.
+// (bukan cuma mengenali di antara pilihan) — dipakai di ronde pengulangan,
+// setelah kata itu sudah sempat diperkenalkan lebih dulu di pelajaran yang
+// sama. Dua soal ketik sengaja ada dua arah: terjemahkan ke Indonesia
+// (type_meaning) DAN tulis dalam bahasa target (type_target), jadi latihan
+// mengetik tidak lagi sekadar menyalin apa yang terlihat.
 const RECALL_TYPES: ExerciseType[] = [
+  "type_meaning",
+  "type_target",
   "mc_id_to_jp",
   "build_word",
-  "type_romaji",
   "speak",
 ];
 
-/** Pilih satu jenis soal secara acak dari daftar, opsional mengecualikan
- *  satu jenis (dipakai supaya ronde ke-2 tidak dapat jenis soal yang sama
- *  persis dengan ronde ke-1 untuk kata yang sama — biar terasa "diulang
- *  dengan cara berbeda", bukan diulang persis sama). */
-function randomType(pool: ExerciseType[], exclude?: ExerciseType): ExerciseType {
-  const candidates = exclude ? pool.filter((t) => t !== exclude) : pool;
-  const options = candidates.length > 0 ? candidates : pool;
-  return options[Math.floor(Math.random() * options.length)];
+// Semua jenis soal yang dipakai di halaman Ulangi (review).
+const REVIEW_TYPES: ExerciseType[] = [
+  "mc_jp_to_id",
+  "mc_id_to_jp",
+  "listen_choose",
+  "type_meaning",
+  "type_target",
+  "build_word",
+  "speak",
+];
+
+/** Apakah jenis soal ini bisa dibuat/dikerjakan untuk kata tertentu di
+ *  perangkat ini. Soal bicara disaring kalau browser tidak mendukung
+ *  pengenalan suara (iOS Safari, Firefox, dll) — daripada muncul soal yang
+ *  isinya cuma tombol "lewati". */
+function isApplicable(type: ExerciseType, vocab: Vocab, speakOk: boolean): boolean {
+  if (type === "speak") return speakOk;
+  if (type === "build_word") return canBuildWord(vocab);
+  return true;
+}
+
+function speechRecognitionAvailable(): boolean {
+  try {
+    return isSpeechRecognitionSupported();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * "Kantong" jenis soal bergilir: tiap jenis keluar sekali per putaran dalam
+ * urutan acak, baru diisi ulang. Hasilnya jenis soal PASTI bervariasi dan
+ * merata (di pelajaran 10 kata, tiap jenis muncul ~2x) — bukan murni acak
+ * yang kadang bisa kebetulan 4 soal ketik berturut-turut atau tidak pernah
+ * kebagian soal ketik sama sekali.
+ */
+class TypeBag {
+  private bag: ExerciseType[] = [];
+  constructor(private readonly types: ExerciseType[]) {}
+
+  take(vocab: Vocab, speakOk: boolean, last: ExerciseType | null): ExerciseType {
+    for (let round = 0; round < 2; round++) {
+      if (this.bag.length === 0) this.bag = shuffle(this.types);
+      // Prioritaskan jenis yang bisa dipakai & beda dari soal sebelumnya.
+      let idx = this.bag.findIndex(
+        (t) => t !== last && isApplicable(t, vocab, speakOk)
+      );
+      if (idx === -1) {
+        idx = this.bag.findIndex((t) => isApplicable(t, vocab, speakOk));
+      }
+      if (idx !== -1) return this.bag.splice(idx, 1)[0];
+      this.bag = []; // bahkan isi kantong baru pun tidak ada yang cocok -> fallback di bawah
+    }
+    return "mc_id_to_jp"; // selalu applicable
+  }
 }
 
 function buildExercise(type: ExerciseType, vocab: Vocab, pool: Vocab[]): Exercise {
@@ -288,8 +412,10 @@ function buildExercise(type: ExerciseType, vocab: Vocab, pool: Vocab[]): Exercis
       return listenChoose(vocab, pool);
     case "build_word":
       return buildWord(vocab);
-    case "type_romaji":
-      return typeRomaji(vocab);
+    case "type_meaning":
+      return typeMeaning(vocab);
+    case "type_target":
+      return typeTarget(vocab);
     case "speak":
       return speakPrompt(vocab);
     case "mc_jp_to_id":
@@ -298,14 +424,17 @@ function buildExercise(type: ExerciseType, vocab: Vocab, pool: Vocab[]): Exercis
   }
 }
 
+/** Pilih satu jenis acak dari daftar, tidak sama dengan soal sebelumnya. */
+function randomType(types: ExerciseType[], last: ExerciseType | null): ExerciseType {
+  const candidates = last ? types.filter((t) => t !== last) : types;
+  const list = candidates.length > 0 ? candidates : types;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
 /**
- * Susun ulang urutan soal supaya jenis yang sama tidak numpuk berturut-turut
- * (mis. 3 soal "speak"/mic nyambung terus, padahal user lagi di tempat umum
- * atau gak pake headphone). Sebelumnya urutan cuma hasil `shuffle()` polos,
- * yang secara statistik cukup sering menghasilkan run 2-3 jenis sama persis
- * berturut-turut. Pakai strategi mirip "task scheduler": tiap langkah pilih
- * dari kelompok jenis yang masih tersisa PALING BANYAK, asalkan bukan jenis
- * yang barusan dipakai.
+ * Susun ulang urutan soal supaya jenis yang sama tidak numpuk berturut-turut.
+ * Strategi mirip "task scheduler": tiap langkah ambil dari kelompok jenis yang
+ * masih tersisa PALING BANYAK, asalkan bukan jenis yang barusan dipakai.
  */
 function spreadOutTypes(exercises: Exercise[]): Exercise[] {
   const buckets = new Map<ExerciseType, Exercise[]>();
@@ -331,14 +460,13 @@ function spreadOutTypes(exercises: Exercise[]): Exercise[] {
 
 export function generateExerciseQueue(lesson: Lesson): Exercise[] {
   const pool = allVocabUpTo(lesson.unitId, lesson.id);
+  const speakOk = speechRecognitionAvailable();
+  const recallBag = new TypeBag(RECALL_TYPES);
 
   // Urutan kata BARU yang diperkenalkan diacak (biar tiap kali mengulang
   // pelajaran terasa beda), tapi urutan MUNCULNYA soal untuk tiap kata tetap
   // dijaga: soal "pengenalan" (recognition) selalu ditempatkan sebelum soal
-  // "pengulangan" (recall/produksi) untuk kata yang sama. Sebelumnya semua
-  // soal (ronde 1 dan ronde 2) digabung lalu di-shuffle rata, jadi soal berat
-  // seperti ketik/susun huruf/ngomong bisa nongol duluan untuk kata yang
-  // belum pernah dikenalkan sama sekali — sangat membingungkan buat pemula.
+  // "pengulangan" (recall/produksi) untuk kata yang sama.
   const order = shuffle(lesson.vocab.map((_, i) => i));
 
   const queue: Exercise[] = [];
@@ -346,12 +474,12 @@ export function generateExerciseQueue(lesson: Lesson): Exercise[] {
   let lastType: ExerciseType | null = null;
 
   function pushRecognition(vocab: Vocab) {
-    const type = randomType(RECOGNITION_TYPES, lastType ?? undefined);
+    const type = randomType(RECOGNITION_TYPES, lastType);
     queue.push(buildExercise(type, vocab, pool));
     lastType = type;
   }
   function pushRecall(vocab: Vocab) {
-    const type = randomType(RECALL_TYPES, lastType ?? undefined);
+    const type = recallBag.take(vocab, speakOk, lastType);
     queue.push(buildExercise(type, vocab, pool));
     lastType = type;
   }
@@ -364,13 +492,12 @@ export function generateExerciseQueue(lesson: Lesson): Exercise[] {
       pendingRecall.push(vocab);
       i++;
     }
-    // Baru selipkan soal pengulangan kalau sudah ada jarak minimal satu soal
-    // lain sejak kata itu diperkenalkan (efek "spaced repetition" ringan),
-    // atau kalau semua kata baru sudah habis diperkenalkan (sisa antrian
-    // pengulangan harus tetap dikeluarkan semua sampai habis).
+    // Soal pengulangan baru diselipkan kalau sudah ada jarak minimal satu
+    // soal lain sejak kata itu diperkenalkan (efek "spaced repetition"
+    // ringan), atau kalau semua kata baru sudah habis diperkenalkan (sisa
+    // antrian pengulangan tetap dikeluarkan sampai habis).
     if (pendingRecall.length >= 2 || (i >= order.length && pendingRecall.length > 0)) {
-      const vocab = pendingRecall.shift()!;
-      pushRecall(vocab);
+      pushRecall(pendingRecall.shift()!);
     }
   }
 
@@ -378,14 +505,10 @@ export function generateExerciseQueue(lesson: Lesson): Exercise[] {
 }
 
 export function generateReviewQueue(vocabList: Vocab[], allPool: Vocab[]): Exercise[] {
-  const types: ExerciseType[] = [
-    "mc_jp_to_id",
-    "mc_id_to_jp",
-    "listen_choose",
-    "type_romaji",
-    "speak",
-  ];
-  return spreadOutTypes(
-    shuffle(vocabList.map((v) => buildExercise(randomType(types), v, allPool)))
+  const speakOk = speechRecognitionAvailable();
+  const bag = new TypeBag(REVIEW_TYPES);
+  const exercises = shuffle(vocabList).map((v) =>
+    buildExercise(bag.take(v, speakOk, null), v, allPool)
   );
+  return spreadOutTypes(exercises);
 }

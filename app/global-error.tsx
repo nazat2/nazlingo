@@ -65,11 +65,11 @@ export default function GlobalError({
       >
         <div style={{ fontSize: "48px" }}>⚠️</div>
         <h1 style={{ fontSize: "22px", fontWeight: 800, margin: 0 }}>
-          Nazlingo lagi error nih
+          Nazlingo mengalami masalah
         </h1>
         <p style={{ maxWidth: "360px", fontSize: "14px", color: fgMuted, margin: 0 }}>
-          Ada error yang nggak kesangka. Tenang, progres belajarmu tetep aman
-          kok di perangkat ini — coba reload aplikasinya.
+          Terjadi kesalahan yang tidak terduga. Progres belajarmu tersimpan
+          aman di perangkat ini — coba muat ulang aplikasi.
         </p>
         <button
           onClick={reset}

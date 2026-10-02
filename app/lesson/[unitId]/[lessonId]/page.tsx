@@ -93,7 +93,7 @@ export default function LessonPage() {
     } else {
       setWrongCount((c) => c + 1);
       setBannerState("wrong");
-      setBannerAnswer(current.romaji);
+      setBannerAnswer(current.answerDisplay ?? current.romaji);
     }
     setPendingCorrect(correct);
   }
@@ -104,7 +104,18 @@ export default function LessonPage() {
   function handleContinue() {
     setBannerState("idle");
     setPendingCorrect(null);
+    advance();
+  }
 
+  // Soal dilewati tanpa dinilai (mis. soal bicara saat tidak bisa bicara):
+  // tidak masuk hitungan benar/salah dan tidak mengubah statistik kata, tapi
+  // antrian tetap lanjut / pelajaran tetap bisa selesai.
+  function handleSkip() {
+    if (bannerState !== "idle") return;
+    advance();
+  }
+
+  function advance() {
     if (index + 1 >= currentQueue.length) {
       setProgress((p) => {
         let next = addXp(p, XP_PER_LESSON);
@@ -123,7 +134,12 @@ export default function LessonPage() {
     <div className="flex min-h-[calc(100vh-65px)] flex-col">
       <ExerciseHeader progressPercent={progressPercent} lang={current.lang} />
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
-        <ExerciseCard key={current.id} exercise={current} onResult={handleResult} />
+        <ExerciseCard
+          key={current.id}
+          exercise={current}
+          onResult={handleResult}
+          onSkip={handleSkip}
+        />
       </div>
       <FeedbackBanner
         state={bannerState}

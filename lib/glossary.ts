@@ -37,12 +37,12 @@ const JA_PARTICLES: Record<string, string> = {
   や: "dan (contoh tak lengkap)",
   ちゃん: "panggilan sayang",
   くん: "panggilan akrab (laki-laki)",
-  たち: "penanda jamak (~sekalian)",
+  たち: "penanda jamak untuk orang (mis. わたしたち = kami / kita)",
   でした: "adalah (bentuk lampau)",
   ました: "akhiran kata kerja bentuk lampau (sopan)",
   ます: "akhiran kata kerja bentuk sopan",
   ません: "akhiran kata kerja negatif (sopan)",
-  たなかさん: "Tanaka (nama orang + panggilan hormat)",
+  たなかさん: "Tanaka-san (nama orang + sapaan hormat)",
   ほんとうに: "sungguh / benar-benar",
 };
 
@@ -57,11 +57,11 @@ const ZH_PARTICLES: Record<string, string> = {
   呢: "partikel penegas (kan? / lalu?)",
   吧: "partikel ajakan/perkiraan (~yuk / mungkin)",
   也: "juga",
-  都: "semua / sama-sama",
+  都: "semua / semuanya",
   和: "dan / dengan",
   在: "di / sedang (kata kerja)",
   不: "tidak",
-  没: "tidak (untuk 'punya'/lampau)",
+  没: "tidak (untuk 'punya' / kejadian yang belum terjadi)",
   很: "sangat",
   这: "ini",
   那: "itu",
@@ -69,7 +69,7 @@ const ZH_PARTICLES: Record<string, string> = {
   你: "kamu",
   他: "dia (laki-laki)",
   她: "dia (perempuan)",
-  们: "penanda jamak (~sekalian)",
+  们: "penanda jamak untuk orang (mis. 我们 = kami)",
   会: "bisa (kemampuan) / akan",
   要: "mau / akan",
 };
@@ -91,14 +91,14 @@ const AR_FUNCTION_WORDS: Record<string, string> = {
   هو: "dia (laki-laki)",
   هي: "dia (perempuan)",
   نعم: "ya",
-  ال: "partikel penanda definit (the)",
+  ال: "kata sandang tentu (seperti 'the')",
 };
 
 // Kata fungsi Bahasa Inggris yang umum tapi mungkin belum ada di kosakata.
 const EN_FUNCTION_WORDS: Record<string, string> = {
   a: "sebuah / seorang (kata sandang)",
   an: "sebuah / seorang (kata sandang)",
-  the: "kata sandang penunjuk (si / itu)",
+  the: "kata sandang tentu (menunjuk benda yang sudah jelas)",
   is: "adalah (untuk dia/itu)",
   am: "adalah (untuk saya)",
   are: "adalah (untuk kamu/mereka)",
@@ -110,7 +110,7 @@ const EN_FUNCTION_WORDS: Record<string, string> = {
   it: "itu / dia (benda)",
   of: "dari / milik",
   on: "di atas / pada",
-  at: "di (tempat/waktu spesifik)",
+  at: "di / pada (tempat atau waktu tertentu)",
   my: "milik saya",
   your: "milik kamu",
   his: "milik dia (laki-laki)",

@@ -29,6 +29,13 @@ export type LanguageMeta = {
    *  sebenarnya tidak butuh istilah apa pun karena sudah huruf Latin asli
    *  (jadi latihannya lebih pas disebut "ejaan"). */
   readingLabel: string;
+  /** Apakah bahasa ini SUDAH ditulis dengan huruf Latin (true: Inggris) atau
+   *  memakai aksara sendiri (false: Jepang, Mandarin, Arab, Rusia). Dipakai
+   *  soal "Tulis dalam bahasa ..." untuk menentukan petunjuknya: bahasa
+   *  beraksara sendiri boleh dijawab pakai aksara aslinya ATAU cara
+   *  bacanya (romaji/pinyin/transliterasi), karena tidak semua pengguna
+   *  punya keyboard aksara itu di HP/laptopnya. */
+  latinScript: boolean;
 };
 
 export const LANGUAGES: LanguageMeta[] = [
@@ -43,6 +50,7 @@ export const LANGUAGES: LanguageMeta[] = [
     heroDescription:
       "Kosakata, cara baca romaji, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
     readingLabel: "romaji",
+    latinScript: false,
   },
   {
     code: "en",
@@ -55,6 +63,7 @@ export const LANGUAGES: LanguageMeta[] = [
     heroDescription:
       "Kosakata, cara pengucapan, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
     readingLabel: "ejaan",
+    latinScript: true,
   },
   {
     code: "zh",
@@ -67,6 +76,7 @@ export const LANGUAGES: LanguageMeta[] = [
     heroDescription:
       "Kosakata, cara baca pinyin, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
     readingLabel: "pinyin",
+    latinScript: false,
   },
   {
     code: "ar",
@@ -80,6 +90,7 @@ export const LANGUAGES: LanguageMeta[] = [
       "Kosakata, cara baca transliterasi, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
     dir: "rtl",
     readingLabel: "transliterasi",
+    latinScript: false,
   },
   {
     code: "ru",
@@ -92,6 +103,7 @@ export const LANGUAGES: LanguageMeta[] = [
     heroDescription:
       "Kosakata, cara baca transliterasi, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
     readingLabel: "transliterasi",
+    latinScript: false,
   },
 ];
 
