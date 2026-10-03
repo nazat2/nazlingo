@@ -274,7 +274,7 @@ function Instruction({ type, lang }: { type: Exercise["type"]; lang: LanguageCod
   let sub: string | null = null;
   if (type === "type_target") {
     sub = meta.latinScript
-      ? "Ketik katanya dalam huruf biasa."
+      ? `Ketik katanya dalam huruf biasa.${meta.typingNote ? " " + meta.typingNote : ""}`
       : `Boleh pakai huruf asli atau cara baca (${meta.readingLabel}).`;
   }
   return (
@@ -452,15 +452,14 @@ function TypedAnswerBlock({
     <div className="flex flex-col items-center gap-6">
       {isMeaning ? (
         // Terjemahkan ke Indonesia: tampilkan kata bahasa target (+ suara).
-        // Ketuk kata di sini sengaja menampilkan CARA BACA (bukan arti),
-        // karena arti-lah yang sedang ditanyakan.
+        // Ketuk kata menampilkan arti Indonesianya (gaya Duolingo), sama
+        // seperti di soal lain.
         <div className="flex items-center gap-4 rounded-2xl bg-surface p-6 shadow-card">
           <SpeakButton text={exercise.jp || ""} lang={exercise.lang} />
           <div>
             <ClickableText
               text={exercise.jp || ""}
               lang={exercise.lang}
-              glossMode="romaji"
               className="font-display text-3xl font-bold"
             />
             {showRomaji && exercise.romaji && !meta.latinScript && (

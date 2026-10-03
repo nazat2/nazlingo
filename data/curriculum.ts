@@ -6,6 +6,7 @@ import { EN_RAW } from "./curriculum.en";
 import { ZH_RAW } from "./curriculum.zh";
 import { AR_RAW } from "./curriculum.ar";
 import { RU_RAW } from "./curriculum.ru";
+import { ES_RAW } from "./curriculum.es";
 
 // Facade: menggabungkan kurikulum semua bahasa yang tersedia. Setiap unit &
 // pelajaran punya id unik lintas bahasa (diberi prefix kode bahasa di
@@ -17,6 +18,7 @@ const EN_UNITS: Unit[] = buildCurriculum("en", EN_RAW);
 const ZH_UNITS: Unit[] = buildCurriculum("zh", ZH_RAW);
 const AR_UNITS: Unit[] = buildCurriculum("ar", AR_RAW);
 const RU_UNITS: Unit[] = buildCurriculum("ru", RU_RAW);
+const ES_UNITS: Unit[] = buildCurriculum("es", ES_RAW);
 
 const UNITS_BY_LANG: Record<LanguageCode, Unit[]> = {
   ja: JA_UNITS,
@@ -24,10 +26,11 @@ const UNITS_BY_LANG: Record<LanguageCode, Unit[]> = {
   zh: ZH_UNITS,
   ar: AR_UNITS,
   ru: RU_UNITS,
+  es: ES_UNITS,
 };
 
 /** Semua unit dari semua bahasa digabung (dipakai untuk pencarian by-id). */
-export const ALL_UNITS: Unit[] = [...JA_UNITS, ...EN_UNITS, ...ZH_UNITS, ...AR_UNITS, ...RU_UNITS];
+export const ALL_UNITS: Unit[] = [...JA_UNITS, ...EN_UNITS, ...ZH_UNITS, ...AR_UNITS, ...RU_UNITS, ...ES_UNITS];
 
 /** Semua pelajaran dari semua bahasa digabung (dipakai untuk peta id->vocab). */
 export const ALL_LESSONS: Lesson[] = ALL_UNITS.flatMap((u) => u.lessons);

@@ -26,6 +26,7 @@ const ALPHABET_LABEL: Record<LanguageCode, string | null> = {
   ar: "Huruf Hijaiyah",
   ru: "Alfabet Cyrillic",
   en: null,
+  es: null,
 };
 
 export default function SideNav() {

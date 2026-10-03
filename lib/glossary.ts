@@ -255,6 +255,48 @@ const RU_FUNCTION_WORDS_ROMAJI: Record<string, string> = {
   нет: "net",
 };
 
+// Kata fungsi Bahasa Spanyol yang sangat sering muncul di contoh kalimat tapi
+// belum tentu jadi kosakata utama sebuah pelajaran (kata sandang, kata kerja
+// bantu, kata ganti kepemilikan) — supaya tetap bisa diketuk-lihat-arti.
+// Kata yang SUDAH ada sebagai kosakata (mis. "de", "en", "y") tidak perlu
+// ditulis lagi di sini.
+const ES_FUNCTION_WORDS: Record<string, string> = {
+  el: "kata sandang tentu (maskulin)",
+  la: "kata sandang tentu (feminin)",
+  los: "kata sandang tentu (jamak, maskulin)",
+  las: "kata sandang tentu (jamak, feminin)",
+  un: "sebuah (maskulin)",
+  una: "sebuah (feminin)",
+  del: "dari + el (milik / asal)",
+  al: "ke + el (tujuan)",
+  es: "adalah (dia / itu)",
+  soy: "saya adalah",
+  eres: "kamu adalah",
+  son: "adalah (mereka)",
+  estoy: "saya berada / sedang",
+  estás: "kamu berada / sedang",
+  está: "dia berada / sedang",
+  están: "mereka berada / sedang",
+  hay: "ada",
+  mi: "milik saya",
+  mis: "milik saya (jamak)",
+  tu: "milik kamu",
+  su: "milik dia / mereka / Anda",
+  que: "yang / bahwa",
+  se: "kata ganti refleksif (diri sendiri)",
+  me: "saya (objek)",
+  te: "kamu (objek)",
+  lo: "itu / dia (objek)",
+  también: "juga",
+  voy: "saya pergi",
+  tengo: "saya punya",
+  quiero: "saya mau",
+  gusta: "disukai / suka",
+  nos: "kami (objek) / kita",
+  ellos: "mereka (laki-laki)",
+  nosotros: "kami / kita",
+};
+
 let cache: Partial<Record<LanguageCode, Dict>> = {};
 let romajiCache: Partial<Record<LanguageCode, Dict>> = {};
 
@@ -262,7 +304,7 @@ let romajiCache: Partial<Record<LanguageCode, Dict>> = {};
 function normalizePhrase(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[.,!?"“”«»،؛؟—]/g, "")
+    .replace(/[.,!?¿¡"“”«»،؛؟—]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -273,6 +315,7 @@ function extraDictFor(lang: LanguageCode, mode: GlossMode): Dict {
   if (lang === "zh") return mode === "romaji" ? ZH_PARTICLES_ROMAJI : ZH_PARTICLES;
   if (lang === "ar") return mode === "romaji" ? AR_FUNCTION_WORDS_ROMAJI : AR_FUNCTION_WORDS;
   if (lang === "ru") return mode === "romaji" ? RU_FUNCTION_WORDS_ROMAJI : RU_FUNCTION_WORDS;
+  if (lang === "es") return mode === "romaji" ? {} : ES_FUNCTION_WORDS;
   return mode === "romaji" ? EN_FUNCTION_WORDS_ROMAJI : EN_FUNCTION_WORDS;
 }
 
@@ -453,6 +496,18 @@ function tokenizeRussian(text: string, dict: Dict): GlossToken[] {
   return tokenizeWordBased(text, dict, CYRILLIC_WORD_SPLIT, (p) => CYRILLIC_WORD_TEST.test(p));
 }
 
+// Huruf Latin Spanyol: A-Z plus huruf beraksen (á é í ó ú ü) dan ñ.
+const SPANISH_LETTERS = "A-Za-zÁÉÍÓÚÜÑáéíóúüñ";
+const SPANISH_WORD_SPLIT = new RegExp(`[${SPANISH_LETTERS}]+|[^${SPANISH_LETTERS}]+`, "g");
+const SPANISH_WORD_TEST = new RegExp(`[${SPANISH_LETTERS}]`);
+
+/** Tokenisasi kalimat Spanyol: sama seperti Inggris, tapi huruf beraksen dan
+ *  ñ dihitung bagian dari kata (bukan tanda baca) — kalau tidak, "está" akan
+ *  terpecah jadi "est" dan "á". */
+function tokenizeSpanish(text: string, dict: Dict): GlossToken[] {
+  return tokenizeWordBased(text, dict, SPANISH_WORD_SPLIT, (p) => SPANISH_WORD_TEST.test(p));
+}
+
 /** Pecah teks jadi token-token untuk fitur ketuk-lihat-arti. */
 export function tokenizeForGloss(
   text: string,
@@ -465,5 +520,6 @@ export function tokenizeForGloss(
   if (lang === "zh") return tokenizeChinese(text, dict);
   if (lang === "ar") return tokenizeArabic(text, dict);
   if (lang === "ru") return tokenizeRussian(text, dict);
+  if (lang === "es") return tokenizeSpanish(text, dict);
   return tokenizeEnglish(text, dict);
 }

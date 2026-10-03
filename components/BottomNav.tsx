@@ -24,6 +24,7 @@ const ALPHABET_LABEL: Record<LanguageCode, string | null> = {
   ar: "Hijaiyah",
   ru: "Cyrillic",
   en: null,
+  es: null,
 };
 
 export default function BottomNav() {

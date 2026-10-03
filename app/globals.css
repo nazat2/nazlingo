@@ -201,6 +201,15 @@ body {
   background-size: 20px 20px, 24px 24px, 24px 24px;
 }
 
+/* Spanyol: ubin geometris ala azulejo — kotak bersudut dengan garis tipis dan
+   titik di tengah (murni dekoratif, bukan lambang negara tertentu). */
+.motif-tiles {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.20) 0 2px, transparent 2.5px);
+  background-size: 28px 28px, 28px 28px, 28px 28px;
+}
+
 ::selection {
   background: #f4a6b7;
   color: #1b2e4b;

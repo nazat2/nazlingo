@@ -2,7 +2,7 @@
 // Menambah bahasa baru di masa depan cukup dengan menambah entri di sini
 // dan membuat file data/curriculum.<kode>.ts yang sesuai.
 
-export type LanguageCode = "ja" | "en" | "zh" | "ar" | "ru";
+export type LanguageCode = "ja" | "en" | "zh" | "ar" | "ru" | "es";
 
 export type LanguageMeta = {
   code: LanguageCode;
@@ -29,13 +29,16 @@ export type LanguageMeta = {
    *  sebenarnya tidak butuh istilah apa pun karena sudah huruf Latin asli
    *  (jadi latihannya lebih pas disebut "ejaan"). */
   readingLabel: string;
-  /** Apakah bahasa ini SUDAH ditulis dengan huruf Latin (true: Inggris) atau
-   *  memakai aksara sendiri (false: Jepang, Mandarin, Arab, Rusia). Dipakai
+  /** Apakah bahasa ini SUDAH ditulis dengan huruf Latin (true: Inggris, Spanyol) atau
+   *  memakai aksara sendiri (false: Jepang, Mandarin, Arab, Rusia; true: Inggris, Spanyol). Dipakai
    *  soal "Tulis dalam bahasa ..." untuk menentukan petunjuknya: bahasa
    *  beraksara sendiri boleh dijawab pakai aksara aslinya ATAU cara
    *  bacanya (romaji/pinyin/transliterasi), karena tidak semua pengguna
    *  punya keyboard aksara itu di HP/laptopnya. */
   latinScript: boolean;
+  /** Catatan kecil tentang cara mengetik jawaban bahasa ini (opsional),
+   *  ditampilkan di bawah judul soal "Tulis dalam bahasa ...". */
+  typingNote?: string;
 };
 
 export const LANGUAGES: LanguageMeta[] = [
@@ -105,6 +108,20 @@ export const LANGUAGES: LanguageMeta[] = [
     readingLabel: "transliterasi",
     latinScript: false,
   },
+  {
+    code: "es",
+    label: "Bahasa Spanyol",
+    nativeName: "Español",
+    flag: "🇪🇸",
+    speechLang: "es-ES",
+    heroTitle: "Aprendamos español",
+    heroSubtitle: "Belajar Bahasa Spanyol dari nol",
+    heroDescription:
+      "Kosakata, cara pengucapan, dan latihan berulang — pelan-pelan sampai benar-benar lancar. Tanpa terburu-buru, tanpa bikin pusing.",
+    readingLabel: "ejaan",
+    latinScript: true,
+    typingNote: "Tanda aksen (á, é, í, ó, ú) boleh dilewatkan. Huruf ñ boleh ditulis \"ny\".",
+  },
 ];
 
 export const DEFAULT_LANGUAGE: LanguageCode = "ja";
@@ -121,6 +138,8 @@ export const DEFAULT_LANGUAGE: LanguageCode = "ja";
  * - Mandarin: gradien merah torii + motif belah ketupat (lattice).
  * - Arab: gradien emas + motif geometris kisi bintang, gaya ornamen Islami/Arab
  *   yang umum dipakai di desain (bukan simbol keagamaan tertentu).
+ * - Spanyol: gradien merah-emas (nuansa matahari terbenam) + motif ubin
+ *   geometris ala azulejo.
  * - Rusia: gradien biru-merah (nuansa dingin ke hangat) + motif "embun beku"
  *   garis silang tipis, kesan musim dingin khas Rusia.
  */
@@ -140,6 +159,7 @@ export const LANGUAGE_THEME: Record<LanguageCode, LanguageTheme> = {
   zh: { gradient: "bg-grad-torii", motif: "motif-diamonds", blurA: "bg-gold/35", blurB: "bg-indigo-light/30" },
   ar: { gradient: "bg-grad-gold", motif: "motif-stars", blurA: "bg-indigo-light/35", blurB: "bg-torii/30" },
   ru: { gradient: "bg-grad-crimson", motif: "motif-frost", blurA: "bg-gold/30", blurB: "bg-indigo-light/35" },
+  es: { gradient: "bg-grad-sunset", motif: "motif-tiles", blurA: "bg-gold/40", blurB: "bg-torii/30" },
 };
 
 export function getLanguageTheme(code: LanguageCode): LanguageTheme {

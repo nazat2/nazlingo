@@ -16,6 +16,7 @@ import { Exercise, Vocab } from "@/lib/types";
 import { getAllVocabFor } from "@/data/curriculum";
 import { levenshtein } from "@/lib/levenshtein";
 import { meaningKey } from "@/lib/meaning";
+import { digitsOfMeaning, collapseDigitGrouping } from "@/lib/numbers";
 
 export type TypedResult = "exact" | "typo" | "wrong";
 
@@ -42,9 +43,14 @@ export function normalizeWriting(input: string, lang: LanguageCode): string {
   let t = (input ?? "").normalize("NFKC").toLowerCase();
   // Diakritik hanya dicopot dari huruf LATIN (supaya "й" Rusia tidak ikut
   // berubah jadi "и" — itu huruf berbeda).
+  // Spanyol: huruf "ñ" adalah huruf tersendiri (año ≠ ano), jadi dijaga
+  // dulu dengan penanda sementara lalu dikembalikan setelah diakritik lain
+  // (á é í ó ú ü) dicopot.
+  if (lang === "es") t = t.replace(/ñ/g, "\uE000");
   t = t.replace(/[\u00C0-\u024F\u1E00-\u1EFF]+/g, (m) =>
     m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   );
+  if (lang === "es") t = t.replace(/\uE000/g, "ñ");
   if (lang === "ar") {
     t = t
       .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
@@ -52,7 +58,9 @@ export function normalizeWriting(input: string, lang: LanguageCode): string {
       .replace(/\u0649/g, "\u064A");
   }
   if (lang === "ru") t = t.replace(/\u0451/g, "\u0435");
-  if (lang === "zh") t = t.replace(/[0-9]/g, "");
+  // Angka nada pinyin ("ni3 hao3") dibuang, tapi hanya kalau ada huruf Latin
+  // di dalamnya — angka murni ("30") adalah jawaban bilangan, jangan dihapus.
+  if (lang === "zh" && /[a-z]/.test(t)) t = t.replace(/[0-9]/g, "");
   return t.replace(IGNORED_CHARS, "");
 }
 
@@ -75,7 +83,7 @@ function writingCandidates(input: string, lang: LanguageCode): string[] {
   const push = (s: string) => {
     if (s && out.indexOf(s) === -1) out.push(s);
   };
-  const base = normalizeWriting(input, lang);
+  const base = normalizeWriting(collapseDigitGrouping(input), lang);
   push(base);
   if (lang === "ja") {
     // Pengguna sering mengetik "ō" untuk "ou"/"oo" (ou/oo/uu/aa/ii/ei).
@@ -109,6 +117,11 @@ export function acceptedWritings(v: Vocab): string[] {
     add(text.replace(/\([^)]*\)/g, " "));
     for (const part of text.replace(/\([^)]*\)/g, " ").split("/")) add(part);
   }
+  // Kata bilangan juga boleh ditulis dengan angka ("30" untuk thirty / 三十 /
+  // 三十 / ثلاثون / тридцать) — dibaca dari arti Indonesianya, jadi berlaku
+  // untuk semua bahasa.
+  const digits = digitsOfMeaning(v.id_);
+  if (digits) add(digits);
   return out;
 }
 
@@ -118,6 +131,9 @@ export function meaningKeysOf(v: Vocab): string[] {
   for (const m of [v.id_, ...(v.alt ?? [])]) {
     const k = meaningKey(m);
     if (k && out.indexOf(k) === -1) out.push(k);
+    // "tiga puluh" juga sah dijawab "30".
+    const d = digitsOfMeaning(m);
+    if (d && out.indexOf(d) === -1) out.push(d);
   }
   return out;
 }
@@ -167,6 +183,8 @@ function typoTolerance(len: number): number {
 function closestMatch(candidates: string[], accepts: string[]): boolean {
   for (const c of candidates) {
     for (const a of accepts) {
+      // Angka harus persis: "10001" bukan salah ketik dari "10000".
+      if (/^\d+$/.test(a) || /^\d+$/.test(c)) continue;
       const tol = typoTolerance(a.length);
       if (tol === 0) continue;
       // Selisih panjang lebih besar dari toleransi pasti tidak lolos — lewati
@@ -184,7 +202,7 @@ export function checkMeaningInput(
   accepts: string[],
   lang: LanguageCode
 ): TypedResult {
-  const typed = meaningKey(input);
+  const typed = meaningKey(collapseDigitGrouping(input));
   if (!typed) return "wrong";
   if (accepts.indexOf(typed) !== -1) return "exact";
   if (knownMeanings(lang).has(typed)) return "wrong"; // kata lain yang sah, bukan typo
@@ -204,6 +222,14 @@ export function checkWritingInput(
   }
   const known = knownWritings(lang);
   if (candidates.some((c) => known.has(c))) return "wrong"; // kata lain yang sah
+  // Spanyol: "ano" untuk "año" dihitung benar dengan catatan penulisan yang
+  // benar (tidak semua keyboard punya tombol ñ).
+  if (lang === "es") {
+    const flat = (s: string) => s.replace(/ñ/g, "n");
+    if (candidates.some((c) => accepts.some((a) => a.indexOf("ñ") !== -1 && flat(a) === flat(c)))) {
+      return "typo";
+    }
+  }
   return closestMatch(candidates, accepts) ? "typo" : "wrong";
 }
 

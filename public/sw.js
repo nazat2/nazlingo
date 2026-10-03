@@ -41,7 +41,7 @@
 // CACHE_VERSION di bawah supaya semua cache lama otomatis dibersihkan saat
 // pengguna membuka app versi baru (lihat listener "activate").
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const STATIC_CACHE = `nazlingo-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `nazlingo-pages-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";

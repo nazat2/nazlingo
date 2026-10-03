@@ -86,6 +86,7 @@ const config: Config = {
         "grad-sakura": "linear-gradient(135deg, #F4A6B7 0%, #E6849B 60%, #C96A82 100%)",
         "grad-gold": "linear-gradient(135deg, #F0C169 0%, #E0A33C 55%, #C4872A 100%)",
         "grad-matcha": "linear-gradient(135deg, #7FA98C 0%, #5C8A6A 55%, #3F6A4D 100%)",
+        "grad-sunset": "linear-gradient(135deg, #F0C169 0%, #E0703A 50%, #B33A26 100%)",
         "grad-crimson": "linear-gradient(135deg, #3E5C8A 0%, #1B2E4B 45%, #B33A26 100%)",
       },
     },

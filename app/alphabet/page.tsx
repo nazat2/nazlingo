@@ -80,6 +80,7 @@ const CONFIG: Record<LanguageCode, PageConfig | null> = {
     note: "Ъ (tanda keras) dan Ь (tanda lunak) tidak punya bunyi sendiri — fungsinya mengubah cara baca huruf di sekitarnya, bukan menambah bunyi baru.",
   },
   en: null,
+  es: null,
 };
 
 export default function AlphabetPage() {
@@ -98,9 +99,9 @@ export default function AlphabetPage() {
       <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 md:pb-12">
         <h1 className="font-display text-2xl font-bold">Huruf & Aksara</h1>
         <p className="mt-3 rounded-2xl bg-surface p-5 text-sm text-ink/60 shadow-card">
-          Bahasa Inggris sudah memakai huruf Latin yang persis sama dengan
-          Bahasa Indonesia, jadi tidak ada aksara khusus yang perlu dipelajari
-          di sini. Langsung lanjut saja ke pelajaran kosakata.
+          Bahasa ini sudah memakai huruf Latin yang hampir sama dengan Bahasa
+          Indonesia, jadi tidak ada aksara khusus yang perlu dipelajari di
+          sini. Langsung lanjut saja ke pelajaran kosakata.
         </p>
       </div>
     );

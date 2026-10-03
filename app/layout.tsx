@@ -40,7 +40,7 @@ const zenmaru = M_PLUS_Rounded_1c({
 export const metadata: Metadata = {
   title: "Nazlingo — Belajar Bahasa Asing dari Nol",
   description:
-    "Belajar kosakata Bahasa Jepang & Inggris dari nol dengan cara baca, latihan berulang, dan level yang naik perlahan. Gaya belajar santai untuk pemula, bisa ganti-ganti bahasa kapan saja.",
+    "Belajar kosakata Bahasa Jepang, Inggris, Mandarin, Arab, Rusia & Spanyol dari nol dengan cara baca, latihan berulang, dan level yang naik perlahan. Gaya belajar santai untuk pemula, bisa ganti-ganti bahasa kapan saja.",
   applicationName: "Nazlingo",
   manifest: "/manifest.json",
   icons: {

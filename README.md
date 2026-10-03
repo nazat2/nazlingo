@@ -252,3 +252,14 @@ Selamat belajar — 頑張って (ganbatte, semangat)! 🍡
   disembunyikan, dan efek "ting" menunggu ucapan selesai.
 - Soal bicara disaring otomatis kalau browser tidak mendukung pengenalan suara;
   "Tak bisa bicara sekarang" melewati soal tanpa dinilai benar/salah.
+
+## Bahasa Spanyol (🇪🇸)
+
+- Data: `data/curriculum.es.ts` — 25 unit / 125 pelajaran / 1.011 kata, sejajar
+  dengan kurikulum Inggris. Cukup tulis `W("Kata", "arti Indonesia")`; ejaan
+  a-z polos untuk latihan susun-huruf dihitung otomatis (`ñ` → `ny`, aksen dibuang).
+- Jawaban ketikan: aksen (á é í ó ú) boleh dilewatkan; `ñ` boleh ditulis `ny`
+  (atau `n`, dihitung "nyaris tepat"); tanda ¿ ¡ diabaikan.
+- Ketuk kata di kalimat Spanyol menampilkan arti Indonesia (termasuk kata sandang
+  & kata kerja bantu umum), suara memakai `es-ES`.
+- Tidak ada halaman alfabet khusus (huruf Latin), sama seperti Inggris.

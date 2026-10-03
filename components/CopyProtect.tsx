@@ -8,7 +8,7 @@ import { useEffect } from "react";
 // Hiragana, dan daftar "Perlu Dilatih Lagi". Semua teks LAIN (arti Bahasa
 // Indonesia, UI, instruksi, dsb.) tidak punya penanda ini sehingga tetap
 // default ke `lang="id"` dari <html> dan tetap terproteksi seperti biasa.
-const COPYABLE_LANGS = new Set(["ja", "en", "zh", "ar", "ru"]);
+const COPYABLE_LANGS = new Set(["ja", "en", "zh", "ar", "ru", "es"]);
 
 /**
  * Proteksi konten tambahan di level JavaScript (di luar CSS user-select).

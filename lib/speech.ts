@@ -163,7 +163,14 @@ export type PronunciationResult = "correct" | "close" | "wrong";
  * speech recognition, atau partikel Jepang yang samar terdengar.
  */
 export function checkPronunciation(transcript: string, target: string): PronunciationResult {
-  const clean = (s: string) => s.toLowerCase().replace(/[。、.,!?！？\s]/g, "");
+  // Tanda baca (termasuk ¿ ¡ Spanyol) dan tanda aksen diabaikan: speech
+  // recognition sering mengembalikan teks tanpa aksen / tanpa ¿¡.
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[。、.,!?！？¿¡\s]/g, "");
   const a = clean(transcript);
   const b = clean(target);
   if (!a) return "wrong";
